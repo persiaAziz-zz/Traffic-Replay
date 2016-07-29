@@ -25,8 +25,8 @@ def LaunchWorkers(path,nProcess,proxy,replay_type):
     for session in sessions:
         #print("sessions {0} data {1}".format(len(sessions), session._timestamp))
         QList[random.randint(0,nProcess-1)].put(session)
-        #if QList[0].qsize() > 1 :
-        #    break
+        if QList[0].qsize() > 10 :
+            break
     #=============================================== Launch Processes
     print("size",QList[0].qsize())
     for i in range(nProcess):
