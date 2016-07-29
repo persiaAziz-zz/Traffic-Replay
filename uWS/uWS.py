@@ -46,7 +46,7 @@ class MyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         global G_replay_dict
-
+        print("ATS sent me==================>",self.headers)
         request_hash, __ = cgi.parse_header(self.headers.get('Content-MD5'))
         
         if request_hash not in G_replay_dict:
@@ -90,7 +90,7 @@ class MyHandler(BaseHTTPRequestHandler):
 def populate_global_replay_dictionary(sessions):
     ''' Populates the global dictionary of {uuid (string): reponse (Response object)} '''
     global G_replay_dict
-
+    print("size",len(G_replay_dict))
     for session in sessions:
         for txn in session.getTransactionIter():
             G_replay_dict[txn._uuid] = txn.getResponse()

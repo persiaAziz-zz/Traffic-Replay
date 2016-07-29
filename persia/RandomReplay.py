@@ -43,7 +43,9 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
 
     except requests.exceptions.ContentDecodingError as e:
         print("ContentDecodingError exception thrown: probably has to do with how ATS wiretracing encodes body data. Skipping this transaction")
-
+    except:
+        e=sys.exc_info()
+        print("ERROR in requests: ",e,txn.getRequest().getHeaders())
 
 def client_replay(input, proxy, result_queue):
     ''' Replay all transactions in session 
