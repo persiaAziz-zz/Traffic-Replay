@@ -14,19 +14,19 @@ def LaunchWorkers(path,nProcess,proxy,replay_type):
     sessions = s.getSessionList()
     sessions.sort(key=lambda session: session._timestamp)
     Processes=[]
-    QList=[Queue(20000) for i in range(nProcess)]
-    
+    Qsize = int (1.1 * len(sessions)/(nProcess))
+    QList=[Queue(Qsize) for i in range(nProcess)]
     print("Dropped {0} sessions for being malformed".format(len(s.getBadSessionList())))
-    #================================================ Create Queues (persia)
-    #for i in range(nProcess):
-    #    QList[i]=Queue()
+    print(range(nProcess))
     OutputQ=Queue();
     #======================================== Pre-load queues
     for session in sessions:
-        #print("sessions {0} data {1}".format(len(sessions), session._timestamp))
+        #if nProcess == 1:
+        #    QList[0].put(session)
+        #else:            
         QList[random.randint(0,nProcess-1)].put(session)
-        if QList[0].qsize() > 10 :
-            break
+        #if QList[0].qsize() > 10 :
+        #    break
     #=============================================== Launch Processes
     print("size",QList[0].qsize())
     for i in range(nProcess):
@@ -40,5 +40,4 @@ def LaunchWorkers(path,nProcess,proxy,replay_type):
     for p in Processes:
         p.join()
     ms2=time.time()
-    print("OK enough, it is time to exit, running time in seconds", (ms2-ms1))  
-   
+    print("OK enough, it is time to exit, running time in seconds", (ms2-ms1)) 

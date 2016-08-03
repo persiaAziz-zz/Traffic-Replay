@@ -45,6 +45,7 @@ class SessionValidator(object):
                 except:
                     self._bad_sessions.append(fname)
                     _verbose_print("Warning: JSON parse error on file={0}".format(fname))
+                    print("Warning: JSON parse error on file={0}".format(fname))
                     continue
 
                 # then attempt to extract all the required fields from the JSON
@@ -52,15 +53,16 @@ class SessionValidator(object):
                     session_timestamp = sesh['timestamp']
                     session_version = sesh['version']
                     session_txns = list()
-
+                    #print(session_timestamp)
                     for txn in sesh['txns']:
                         # create transaction Request object
                         txn_request = txn['request']
+                       
                         txn_request_body = ''
                         if 'body' in txn_request:
                             txn_request_body = txn_request['body']
                         txn_request_obj = request.Request(txn_request['timestamp'], txn_request['headers'], txn_request_body)
-
+                        
                         # Create transaction Response object
                         txn_response = txn['response']
                         txn_response_body = ''
@@ -71,11 +73,12 @@ class SessionValidator(object):
                         # create Transaction object
                         txn_obj = transaction.Transaction(txn_request_obj, txn_response_obj, txn['uuid'])
                         session_txns.append(txn_obj)
-
+                        print(txn_request['timestamp'])
                     session_obj = session.Session(fname, session_version, session_timestamp, session_txns)
 
                 except KeyError as e:
                     self._bad_sessions.append(fname)
+                    print("Warning: parse error on key={0} for file={1}".format(e, fname))
                     _verbose_print("Warning: parse error on key={0} for file={1}".format(e, fname))
                     continue
 
