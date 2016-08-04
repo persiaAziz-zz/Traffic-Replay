@@ -40,13 +40,13 @@ class MyHandler(BaseHTTPRequestHandler):
 
     def send_response(self, code, message=None):
         ''' Override `send_response()`'s tacking on of server and date header lines. '''
-        self.log_request(code)
+        #self.log_request(code)
         self.send_response_only(code, message)
 
 
     def do_GET(self):
         global G_replay_dict
-        print("ATS sent me==================>",self.headers)
+        #print("ATS sent me==================>",self.headers)
         request_hash, __ = cgi.parse_header(self.headers.get('Content-MD5'))
         
         if request_hash not in G_replay_dict:

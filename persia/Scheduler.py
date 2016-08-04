@@ -16,7 +16,7 @@ def LaunchWorkers(path,nProcess,proxy,replay_type):
     Processes=[]
     Qsize = int (1.1 * len(sessions)/(nProcess))
     QList=[Queue(Qsize) for i in range(nProcess)]
-    print("Dropped {0} sessions for being malformed".format(len(s.getBadSessionList())))
+    print("Dropped {0} sessions for being malformed. Number of correct sessions {1}".format(len(s.getBadSessionList()),len(sessions)))
     print(range(nProcess))
     OutputQ=Queue();
     #======================================== Pre-load queues
