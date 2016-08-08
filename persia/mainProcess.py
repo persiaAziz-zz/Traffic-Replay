@@ -32,10 +32,10 @@ def check_for_ats(hostname, port):
 # Note: this function can't handle multi-line (ie wrapped line) headers
 # Hopefully this isn't an issue because multi-line headers are deprecated now        
         
-def main(path, hostname, port,replay_type, nProcess):
+def main(path, hostname, port,replay_type, nProcess, nThread):
     check_for_ats(hostname, port)
     proxy = {"http": "http://{0}:{1}".format(hostname, port)}
-    Scheduler.LaunchWorkers(path,nProcess,proxy,replay_type)
+    Scheduler.LaunchWorkers(path,nProcess,proxy,replay_type, nThread)
     
     
 

@@ -8,13 +8,13 @@ import WorkerTask
 import time
 
     
-def LaunchWorkers(path,nProcess,proxy,replay_type):
+def LaunchWorkers(path,nProcess,proxy,replay_type, nThread):
     ms1=time.time()
     s = sv.SessionValidator(path)
     sessions = s.getSessionList()
     sessions.sort(key=lambda session: session._timestamp)
     Processes=[]
-    Qsize = int (1.1 * len(sessions)/(nProcess))
+    Qsize = 25000 #int (1.5 * len(sessions)/(nProcess))
     QList=[Queue(Qsize) for i in range(nProcess)]
     print("Dropped {0} sessions for being malformed. Number of correct sessions {1}".format(len(s.getBadSessionList()),len(sessions)))
     print(range(nProcess))
@@ -32,7 +32,7 @@ def LaunchWorkers(path,nProcess,proxy,replay_type):
     for i in range(nProcess):
         QList[i].put('STOP')
     for i in range(nProcess):
-        p=Process(target=WorkerTask.worker, args=[QList[i],OutputQ,proxy,replay_type])
+        p=Process(target=WorkerTask.worker, args=[QList[i],OutputQ,proxy,replay_type, nThread])
         p.daemon=False
         Processes.append(p);
         p.start()

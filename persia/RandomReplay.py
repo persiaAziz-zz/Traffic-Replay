@@ -33,13 +33,14 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
     try:
         request_session.request(extractHeader.extract_txn_req_method(txn_req_headers),
                                     'http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict,
+                                    headers=txn_req_headers_dict)
+                                    
                                     #data=req.getBody(),
-                                    proxies=proxy,
-                                    timeout=2.0,
-                                    stream=True,
-                                    allow_redirects=False)  # so 302 responses doesn't spin in circles
-                                    #, hooks=dict(response=handleResponse)
+                                    #proxies=proxy,
+                                    #timeout=2.0,
+                                    #stream=True)
+                                    #allow_redirects=False)  # so 302 responses doesn't spin in circles
+                                    #, hooks=dict(response=handleResponse))
         #expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
         #expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
         #r = result.Result(session_filename, expected_output[0], response.status_code)
@@ -65,13 +66,14 @@ def session_replay(input, proxy, result_queue):
     #if timing_control:
     #    time.sleep(float(session._timestamp))  # allow other threads to run
     while bSTOP == False:
-        for session in iter(input.get, 'STOP'):            
+        for session in iter(input.get, 'STOP'):
             #print(bSTOP)
             if session == 'STOP':
                 print("stopping now")
                 bSTOP = True
                 break
             with requests.Session() as request_session:
+                request_session.proxies = proxy
                 for txn in session.getTransactionIter():
                     try:
                         txn_replay(session._filename, txn, proxy, result_queue, request_session)

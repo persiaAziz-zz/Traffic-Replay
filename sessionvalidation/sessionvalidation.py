@@ -55,6 +55,7 @@ class SessionValidator(object):
                     session_txns = list()
                     #print(session_timestamp)
                     for txn in sesh['txns']:
+                        #print("PERSIA____________________________________________________________",txn)
                         # create transaction Request object
                         txn_request = txn['request']
                        
@@ -73,7 +74,7 @@ class SessionValidator(object):
                         # create Transaction object
                         txn_obj = transaction.Transaction(txn_request_obj, txn_response_obj, txn['uuid'])
                         session_txns.append(txn_obj)
-                        print(txn_request['timestamp'])
+                        #print(txn_request['timestamp'])
                     session_obj = session.Session(fname, session_version, session_timestamp, session_txns)
 
                 except KeyError as e:
