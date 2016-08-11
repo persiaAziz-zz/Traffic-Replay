@@ -15,7 +15,7 @@ import sessionvalidation.sessionvalidation as sv
 import lib.result as result
 import WorkerTask
 import Scheduler
-
+verbose = False
 def check_for_ats(hostname, port):
     ''' Checks to see if ATS is running on `hostname` and `port`
     If not running, this function will terminate the script
@@ -32,7 +32,9 @@ def check_for_ats(hostname, port):
 # Note: this function can't handle multi-line (ie wrapped line) headers
 # Hopefully this isn't an issue because multi-line headers are deprecated now        
         
-def main(path, hostname, port,replay_type, nProcess, nThread):
+def main(path, hostname, port,replay_type, nProcess, nThread, Bverbose):
+    global verbose
+    verbose = Bverbose
     check_for_ats(hostname, port)
     proxy = {"http": "http://{0}:{1}".format(hostname, port)}
     Scheduler.LaunchWorkers(path,nProcess,proxy,replay_type, nThread)

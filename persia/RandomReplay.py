@@ -8,7 +8,7 @@ from multiprocessing import current_process
 import sessionvalidation.sessionvalidation as sv
 import lib.result as result
 import extractHeader
-
+import mainProcess
 bSTOP = False
 def handleResponse(response,*args, **kwargs):
     print(response.status_code)
@@ -20,7 +20,6 @@ def handleResponse(response,*args, **kwargs):
 
 def txn_replay(session_filename, txn, proxy, result_queue, request_session):
     """ Replays a single transaction
-
     :param request_session: has to be a valid requests session"""
     req = txn.getRequest()
     resp = txn.getResponse()
@@ -31,20 +30,23 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
     txn_req_headers_dict['Content-MD5'] = txn._uuid  # used as unique identifier
     #print("Replaying session")
     try:
-        request_session.request(extractHeader.extract_txn_req_method(txn_req_headers),
-                                    'http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict)
-                                    
+        #response = request_session.request(extractHeader.extract_txn_req_method(txn_req_headers),
+        #                            'http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
+        #                            headers=txn_req_headers_dict,stream=False) # making stream=False raises contentdecoding exception? kill me
+        response = request_session.get('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
+                                    headers=txn_req_headers_dict, stream=True)
                                     #data=req.getBody(),
                                     #proxies=proxy,
                                     #timeout=2.0,
                                     #stream=True)
                                     #allow_redirects=False)  # so 302 responses doesn't spin in circles
                                     #, hooks=dict(response=handleResponse))
-        #expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
-        #expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
-        #r = result.Result(session_filename, expected_output[0], response.status_code)
-        #print(r.getResultString(colorize=True))
+        
+        if mainProcess.verbose:
+            expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
+            expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
+            r = result.Result(session_filename, expected_output[0], response.status_code)
+            print(r.getResultString(colorize=True))
         #result_queue.put(r)
         #print("response", response.status_code)
     except UnicodeEncodeError as e:
@@ -53,7 +55,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         print("UnicodeEncodeError exception")
 
     except requests.exceptions.ContentDecodingError as e:
-        print("ContentDecodingError exception thrown: probably has to do with how ATS wiretracing encodes body data. Skipping this transaction")
+        print("ContentDecodingError",e)
     except:
         e=sys.exc_info()
         print("ERROR in requests: ",e,txn.getRequest().getHeaders())
@@ -69,7 +71,7 @@ def session_replay(input, proxy, result_queue):
         for session in iter(input.get, 'STOP'):
             #print(bSTOP)
             if session == 'STOP':
-                print("stopping now")
+                print("Queue is empty")
                 bSTOP = True
                 break
             with requests.Session() as request_session:
@@ -81,7 +83,7 @@ def session_replay(input, proxy, result_queue):
                         e=sys.exc_info()
                         print("ERROR in replaying: ",e,txn.getRequest().getHeaders())
         bSTOP = True
-        print("stopping now")
+        print("Queue is empty")
         input.put('STOP')
         break
                   

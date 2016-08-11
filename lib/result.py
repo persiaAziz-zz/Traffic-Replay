@@ -44,8 +44,8 @@ class Result(object):
 
         else:
             if colorize:
-                outstr = "{0}FAIL{1}: expected {2}, received {3}".format(
-                    TermColors.FAIL, TermColors.ENDC, self._expected_response, self._received_response)
+                outstr = "{0}FAIL{1}: expected {2}, received {3}, session file: {4}".format(
+                    TermColors.FAIL, TermColors.ENDC, self._expected_response, self._received_response, self._test_name)
 
             else:
                 outstr = "FAIL: expected {0}, received {1}".format(

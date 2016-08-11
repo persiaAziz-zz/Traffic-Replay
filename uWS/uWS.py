@@ -76,6 +76,7 @@ class MyHandler(BaseHTTPRequestHandler):
                 header_parts = header.split(':', 1)
                 header_field = str(header_parts[0].strip())
                 header_field_val = str(header_parts[1].strip())
+                #print("{0} === >{1}".format(header_field, header_field_val))
                 self.send_header(header_field, header_field_val)
 
             self.end_headers()

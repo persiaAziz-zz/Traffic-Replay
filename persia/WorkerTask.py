@@ -13,6 +13,7 @@ import fastestReplay
 import RandomReplay
 import TimelyReplay
 import SSLTest
+import sslTest_thread
 def worker(input,output,proxy,replay_type,nThread):
     #progress_bar = Bar(" Replaying sessions {0}".format(current_process().name), max=input.qsize())
         #print("playing {0}=>{1}:{2}".format(current_process().name,session._timestamp,proxy))
@@ -23,7 +24,7 @@ def worker(input,output,proxy,replay_type,nThread):
     elif replay_type == 'timed':
         TimelyReplay.fastReplay(input, proxy, output)
     elif replay_type == 'ssl':
-        SSLTest.client_replay(input, proxy, output)
+        sslTest_thread.client_replay(input, proxy, output,nThread)
         #progress_bar.next()
     #progress_bar.finish()
     print("process{0} has exited".format(current_process().name)) 
