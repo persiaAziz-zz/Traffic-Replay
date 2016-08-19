@@ -6,8 +6,8 @@ import sessionvalidation.transaction as transaction
 import sessionvalidation.request as request
 import sessionvalidation.response as response
 
-
-G_VERBOSE_LOG = False
+valid_HTTP_request_methods = ['GET', 'POST']
+G_VERBOSE_LOG = True
 
 
 def _verbose_print(msg, verbose_on=False):
@@ -53,7 +53,6 @@ class SessionValidator(object):
                     session_timestamp = sesh['timestamp']
                     session_version = sesh['version']
                     session_txns = list()
-                    #print(session_timestamp)
                     for txn in sesh['txns']:
                         #print("PERSIA____________________________________________________________",txn)
                         # create transaction Request object
@@ -63,7 +62,6 @@ class SessionValidator(object):
                         if 'body' in txn_request:
                             txn_request_body = txn_request['body']
                         txn_request_obj = request.Request(txn_request['timestamp'], txn_request['headers'], txn_request_body)
-                        
                         # Create transaction Response object
                         txn_response = txn['response']
                         txn_response_body = ''
@@ -142,7 +140,7 @@ class SessionValidator(object):
         retval = True
 
         #valid_HTTP_request_methods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'OPTIONS', 'CONNECT', 'PATCH']
-        valid_HTTP_request_methods = ['GET']  # we can later uncomment the previous line to support more HTTP methods
+        # we can later uncomment the previous line to support more HTTP methods
         valid_HTTP_versions = ['HTTP/1.0', 'HTTP/1.1', 'HTTP/2.0']
 
         try:
@@ -157,7 +155,7 @@ class SessionValidator(object):
                 _verbose_print("invalid transaction request timestamp")
                 retval = False
             elif txn_req.getHeaders().split()[0] not in valid_HTTP_request_methods:
-                _verbose_print("invalid HTTP method for transaction")
+                _verbose_print("invalid HTTP method for transaction {0}".format( txn_req.getHeaders().split()[0]))
                 retval = False
             elif not txn_req.getHeaders().endswith("\r\n\r\n"):
                 _verbose_print("transaction request headers didn't end with \\r\\n\\r\\n")
@@ -177,6 +175,7 @@ class SessionValidator(object):
                     if host_header_no_space or host_header_with_space:
                         found_host = False
             if not found_host:
+                print("missing host",txn_req)
                 _verbose_print("transaction request Host header doesn't have specified host")
                 retval = False
 
@@ -244,6 +243,7 @@ class SessionValidator(object):
 
 
     def __init__(self, json_log_dir):
+        global valid_HTTP_request_methods
         self._json_log_dir = json_log_dir
         self._bad_sessions = list()   # list of filenames
         self._sessions = list()       # list of _good_ session objects

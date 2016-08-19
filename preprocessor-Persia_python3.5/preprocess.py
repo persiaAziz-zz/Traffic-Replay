@@ -28,7 +28,7 @@ def process(trace_dir, out_dir):
         with open(os.path.join(trace_dir, file_name), "rb") as f:
             for line in f:
                 try:
-                    print(line.decode('utf-8'))
+                    #print(line.decode('utf-8'))
                     all_lines += line.decode('utf-8')
                 except UnicodeDecodeError:
                     print("weird text")
@@ -74,6 +74,7 @@ def process(trace_dir, out_dir):
 
             if ip_port_key not in raw_sessions:
                 raw_sessions[ip_port_key] = this_trace
+                print(ip_port_key)
             else:
                 raw_sessions[ip_port_key] += this_trace
 

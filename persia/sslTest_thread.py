@@ -10,6 +10,7 @@ import lib.result as result
 import extractHeader
 from gevent import monkey, sleep
 from threading import Thread
+import mainProcess
 #from threading import Thread
 bSTOP = False
 class ssl_socket():
@@ -78,8 +79,9 @@ def sendRequest(ssl_sock, requestString):
         #print(requestString)
         ssl_sock.write(requestString)
         data = ssl_sock.read()
-        status=data.decode().split('\r\n')[0]
-        print(status)
+        if mainProcess.verbose:
+            status=data.decode().split('\r\n')[0]
+            print(status)
         #expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
         #expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
         #r = result.Result(session_filename, expected_output[0], response.status_code)
