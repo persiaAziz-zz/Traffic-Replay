@@ -70,6 +70,7 @@ class MyHandler(BaseHTTPRequestHandler):
                     # we drop the Content-Length header because the wiretrace JSON files are inaccurate
                     # TODO: run time option to force Content-Length to be in headers
                     length = len(bytes(resp.getBody(),'UTF-8')) if resp.getBody() else 0
+                    print("content lenght === >{0}".format(length))
                     self.send_header('Content-Length', str(length))
                     continue
         
@@ -83,10 +84,65 @@ class MyHandler(BaseHTTPRequestHandler):
 
             # set body
             response_string = resp.getBody()
+            #print("response string: ",response_string)
             self.wfile.write(bytes(response_string, 'UTF-8'))
 
         return
+    
+    def do_POST(self):
+        
+        print("ATS sent me==================>",self.headers)
+        try:
+            if self.headers.get('Content-MD5') == None:
+                return
+            print("content-md5 is",self.headers.get('Content-MD5'))
+            global G_replay_dict
+            request_hash, __ = cgi.parse_header(self.headers.get('Content-MD5'))              
+            if request_hash not in G_replay_dict:
+                self.send_response(404)
+                self.send_header('Connection', 'close')
+                self.end_headers()
 
+            else:
+                resp = G_replay_dict[request_hash]
+                resp_headers = resp.getHeaders().split('\r\n')
+                # set status codes
+                status_code = self.get_response_code(resp_headers[0])
+                self.send_response(status_code)
+                print("reposen is ",resp_headers)
+                # set headers
+                for header in resp_headers[1:]: # skip first one b/c it's response code
+                    
+                    if header == '':
+                        continue
+                    elif 'Content-Length' in header:
+                        # we drop the Content-Length header because the wiretrace JSON files are inaccurate
+                        # TODO: run time option to force Content-Length to be in headers
+                        length = len(bytes(resp.getBody(),'UTF-8')) if resp.getBody() else 0
+                        print("content lenght === >{0}".format(length))
+                        self.send_header('Content-Length', str(length))
+                        continue
+            
+                    header_parts = header.split(':', 1)
+                    header_field = str(header_parts[0].strip())
+                    header_field_val = str(header_parts[1].strip())
+                    print("{0} === >{1}".format(header_field, header_field_val))
+                    self.send_header(header_field, header_field_val)
+
+                self.end_headers()
+
+                # set body
+                print("sending body")
+                response_string = resp.getBody()
+                print("response string: ",response_string)
+                self.wfile.write(bytes(response_string, 'UTF-8'))
+                return
+        except:
+            e=sys.exc_info()
+            print("Error",e,e.tb_lineno,self.headers)
+            self.send_response(400)
+            self.send_header('Connection', 'close')
+            self.end_headers()
 
 def populate_global_replay_dictionary(sessions):
     ''' Populates the global dictionary of {uuid (string): reponse (Response object)} '''

@@ -21,7 +21,7 @@ def header_to_dict(header):
     header = [x for x in header if (x != u'')]
     headers = {}
     for line in header:
-        if 'GET' in line or 'POST' in line:     # ignore initial request line
+        if 'GET' in line or 'POST' in line or 'HEAD' in line:     # ignore initial request line
             continue
 
         split_here = line.find(":")

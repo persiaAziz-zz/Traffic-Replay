@@ -32,8 +32,10 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
     txn_req_headers = req.getHeaders()
     txn_req_headers_dict = extractHeader.header_to_dict(txn_req_headers)
     txn_req_headers_dict['Content-MD5'] = txn._uuid  # used as unique identifier
+    if 'body' in txn_req_headers_dict:
+        del txn_req_headers_dict['body']
+    
     #print("Replaying session")
-    #print("header is",txn_req_headers_dict)
     try:
         #response = request_session.request(extractHeader.extract_txn_req_method(txn_req_headers),
         #                            'http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
@@ -50,13 +52,28 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
                                     #allow_redirects=False)  # so 302 responses doesn't spin in circles
                                     #, hooks=dict(response=handleResponse))
         elif method == 'POST':
-            hdr = {'content-type': 'application/json', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)'
-, 'Content-MD5':'5f4308e950ab4d7188e96ddf740855ec'}
-            jd=json.dumps({'d':"{0}".format(req.getBody())})
-            txn_req_headers_dict['body']=req.getBody()
-            response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=hdr, stream=True, data=gen()) #
-            #,data=json.dumps({'data':"blablabla"})
+            if 'Transfer-Encoding' in txn_req_headers_dict:
+                if 'Content-Length' in txn_req_headers_dict:
+                    print("========================================================> problem!")
+                    del txn_req_headers_dict['Content-Length']
+                hdr = {'content-type': 'application/json', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)'
+,'Proxy-Connection': 'Keep-Alive'}
+                hdr['Content-MD5']=txn._uuid
+                #print("header is",txn_req_headers_dict.keys())
+                response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
+                                             headers=hdr, stream=True, data=gen())
+                    
+            else:
+                 hdr = {'content-type': 'application/json', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)'
+, 'Proxy-Connection': 'Keep-Alive'}
+                 jd=json.dumps({'d':'persi\r\n'})
+                 hdr['Content-MD5']=txn._uuid;
+                 #print("header is",txn_req_headers_dict.keys())
+                 response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
+                                             headers=hdr, stream=True, data=jd) #
+        elif method == 'HEAD':
+            response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
+                                    headers=txn_req_headers_dict, stream=True)
         if mainProcess.verbose:
             expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
             expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))

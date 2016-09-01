@@ -6,7 +6,7 @@ import sessionvalidation.transaction as transaction
 import sessionvalidation.request as request
 import sessionvalidation.response as response
 
-valid_HTTP_request_methods = ['GET', 'POST']
+valid_HTTP_request_methods = ['GET', 'POST', 'HEAD']
 G_VERBOSE_LOG = True
 
 
