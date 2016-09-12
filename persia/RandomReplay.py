@@ -54,7 +54,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         response = None
         if method == 'GET':
             response = request_session.get('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict, stream=True)
+                                    headers=txn_req_headers_dict, stream=True, allow_redirects=False)
                                     #data=req.getBody(),
                                     #proxies=proxy,
                                     #timeout=2.0,
@@ -77,21 +77,18 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
                 #hdr['Content-MD5']=txn._uuid
                 #print("header is",type(hdr))
                 response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=txn_req_headers_dict, stream=True, data=gen())
+                                             headers=txn_req_headers_dict, stream=True, data=gen(), allow_redirects=False)
                     
             else:
                 #dummy header for testing
                 #hdr = {'content-type': 'application/json', 'Accept-Encoding':'gzip, deflate', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)','Proxy-Connection': 'Keep-Alive'}
                 #hdr['Content-MD5']=txn._uuid
+                body=None
                 if 'Content-Length' in txn_req_headers_dict:
                     nBytes=int(txn_req_headers_dict['Content-Length'])
                     body = createDummyBodywithLength(nBytes);
-                    #print("body is: ",body)                
-                jd=json.dumps({'d':'persi\r\n'})
-                #check if body is present
-                #print("body",req.getBody())
                 response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=txn_req_headers_dict, stream=True, data=body) #
+                                             headers=txn_req_headers_dict, stream=True, data=body, allow_redirects=False) #
         elif method == 'HEAD':
             response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
                                     headers=txn_req_headers_dict, stream=True)

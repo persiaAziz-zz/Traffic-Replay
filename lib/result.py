@@ -1,3 +1,4 @@
+import sys
 class TermColors:
     ''' Collection of colors for printing out to terminal '''
     HEADER = '\033[95m'
@@ -50,5 +51,6 @@ class Result(object):
             else:
                 outstr = "FAIL: expected {0}, received {1}".format(
                     self._expected_response, self._received_response)
+                sys.exit(0)
 
         return outstr
