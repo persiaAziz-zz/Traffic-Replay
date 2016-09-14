@@ -52,15 +52,24 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         #                            headers=txn_req_headers_dict,stream=False) # making stream=False raises contentdecoding exception? kill me
         method = extractHeader.extract_txn_req_method(txn_req_headers)
         response = None
+        
         if method == 'GET':
+            body=None
+            if 'Content-Length' in txn_req_headers_dict:
+                nBytes=int(txn_req_headers_dict['Content-Length'])
+                body = createDummyBodywithLength(nBytes);
             response = request_session.get('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict, stream=True, allow_redirects=False)
+                                    headers=txn_req_headers_dict, stream=True, allow_redirects=False,data=body)
                                     #data=req.getBody(),
                                     #proxies=proxy,
                                     #timeout=2.0,
                                     #stream=True)
                                     #allow_redirects=False)  # so 302 responses doesn't spin in circles
                                     #, hooks=dict(response=handleResponse))
+            if 'Content-Length' in response.headers:
+                    content = response.raw
+                    print("len: {0} received {1}".format(response.headers['Content-Length'],content))
+
         elif method == 'POST':
             if 'Transfer-Encoding' in txn_req_headers_dict:
                 if 'Content-Length' in txn_req_headers_dict:
@@ -78,7 +87,10 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
                 #print("header is",type(hdr))
                 response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
                                              headers=txn_req_headers_dict, stream=True, data=gen(), allow_redirects=False)
-                    
+                
+                if 'Content-Length' in response.headers and int(response.headers['Content-Length'],10) > 0:
+                    content = response.raw
+                    print("received",content)   
             else:
                 #dummy header for testing
                 #hdr = {'content-type': 'application/json', 'Accept-Encoding':'gzip, deflate', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)','Proxy-Connection': 'Keep-Alive'}
@@ -87,8 +99,12 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
                 if 'Content-Length' in txn_req_headers_dict:
                     nBytes=int(txn_req_headers_dict['Content-Length'])
                     body = createDummyBodywithLength(nBytes);
+
                 response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
                                              headers=txn_req_headers_dict, stream=True, data=body, allow_redirects=False) #
+                if 'Content-Length' in response.headers:
+                    content = response.raw
+                    print("len: {0} received {1}".format(response.headers['Content-Length'],content))
         elif method == 'HEAD':
             response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
                                     headers=txn_req_headers_dict, stream=True)
