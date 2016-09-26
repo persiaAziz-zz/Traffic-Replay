@@ -83,6 +83,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         elif 'Content-Length' in txn_req_headers_dict:
             nBytes=int(txn_req_headers_dict['Content-Length'])
             body = createDummyBodywithLength(nBytes);
+            print("creating body")
             ssl_sock.write(body)
         response = ssl_sock.read()
         if mainProcess.verbose:
