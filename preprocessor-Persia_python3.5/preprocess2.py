@@ -15,6 +15,42 @@ raw_session_dict = dict()
 session_JSON = dict()
 serverPort = '443'
 serverIP = '127.0.0.1'
+def processTraceBlock(block, ip_port_key):
+    ''' format of the trace block
+    [timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n[timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n................
+    '''
+    reqCount = -1
+    respCount =-1
+    session_JSON[ip_port_key] = dict()
+    session_JSON[ip_port_key]["version"] = PROCESSOR_VERSION
+    session_JSON[ip_port_key]["encoding"] = "url_encoded"
+    #get the full header
+    raw_block=iter(block.split('\r\n\r\n\r\n\r\n'))
+    for chunk in raw_block:
+        print("followig=====>\n",chunk)
+    '''
+    timestamp = next(raw_block)
+    timestamp = timestamp[1:-1]
+    print(timestamp)
+    session_JSON[ip_port_key]["timestamp"]=timestamp
+    session_JSON[ip_port_key]["txns"]=list()
+    for line in raw_block:
+        request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', line) #\S+\s/\S+\sHTTP/\d\.\d\r\n
+        response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]+\r\n', line)
+        if(request_chunk):
+            print(line)
+            reqCount+=1
+            session_JSON[ip_port_key]["txns"].append(dict())
+            session_JSON[ip_port_key]["txns"][reqCount]["request"]=dict()
+            next_line = raw_block.next()
+            while next_line:
+                session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]+=next_line + "\r\n"
+                next_line=raw_block.next()
+                if re.findall(r'\r\n\r\n',next_line):
+                    break
+                          
+            session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]+="\r\n"
+    '''
 
 def processFile(trace_dir,file_name):
     global raw_session_dict
@@ -38,7 +74,7 @@ def processFile(trace_dir,file_name):
                 #print(ipv4_port)
                 if send_recv:
                     next_line=f.readline()
-                    print(timestamp)
+                    #print(timestamp)
                     isHttp=re.findall(r'(WIRE TRACE)',next_line.decode('utf-8')) # make sure this is not a log related to ssl stuff, also we only match WIRE TRACE to drop server side stuffs
                     if not isHttp:
                         while next_line: # we don't want the ssl stuff
@@ -105,7 +141,9 @@ def process(trace_dir, out_dir):
     for file_name in trace_files:
         print ("Processing: " + str(file_name))
         processFile(trace_dir,file_name)
-    print(raw_session_dict)
+    for session,traceblock in raw_session_dict.items():
+        processTraceBlock(traceblock,session)
+    #print(raw_session_dict)
     '''
     Is the issue with the input or my processing? 
     tmp_file = open('full_trace.json', 'wb')
@@ -245,7 +283,7 @@ def main(argv):
         print( "Outputs JSONs to directory 'sessions'")
         print( "Usage: python " + str(argv[0]) + " <in directory> <out directory>")
         return
-
+    '''
     if not os.path.isdir(argv[1]):
         print( str(argv[1]) + " is not a directory. Aborting.")
         return
@@ -254,6 +292,7 @@ def main(argv):
     else:
         print( str(argv[2]) + " already exists, choose another output directory!")
         return
+    '''
     t1=time.time()
     process(argv[1], argv[2])
     t2=time.time()
