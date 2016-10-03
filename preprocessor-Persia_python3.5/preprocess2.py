@@ -15,6 +15,34 @@ raw_session_dict = dict()
 session_JSON = dict()
 serverPort = '443'
 serverIP = '127.0.0.1'
+def processTraceBlock2(block, ip_port_key):
+    ''' format of the trace block
+    [timestamp]\r\n\r\n<SEND|RECV>\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n[timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n................
+    '''
+    print("processing block==================================================>",ip_port_key)
+    reqCount = -1
+    respCount =-1
+    session_JSON[ip_port_key] = dict()
+    session_JSON[ip_port_key]["version"] = PROCESSOR_VERSION
+    session_JSON[ip_port_key]["encoding"] = "url_encoded"
+    timestamp = block.split("\t",1)[0]
+    timestamp = timestamp[1:-1]
+    session_JSON[ip_port_key]["timestamp"]=timestamp
+    session_JSON[ip_port_key]["txns"]=list()
+    raw_block=iter(block.split('\t'))
+    recv_block=''
+    send_block=''
+    for chunk in raw_block:
+        #print("=================>",chunk)
+        if re.findall(r'\[[0-9]+(?:\.[0-9]+)\] RECV',chunk):
+            if not recv_block.endswith('\n\n'):                
+                recv_block+=raw_block.__next__()
+        if re.findall(r'\[[0-9]+(?:\.[0-9]+)\] SEND',chunk):
+            if not send_block.endswith('\n\n'):
+                send_block+=raw_block.__next__()
+    print("____________________recv_____________________",recv_block)
+    print("_____________________send____________________",send_block)
+
 def processTraceBlock(block, ip_port_key):
     ''' format of the trace block
     [timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n[timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n................
@@ -24,33 +52,40 @@ def processTraceBlock(block, ip_port_key):
     session_JSON[ip_port_key] = dict()
     session_JSON[ip_port_key]["version"] = PROCESSOR_VERSION
     session_JSON[ip_port_key]["encoding"] = "url_encoded"
+    timestamp = block.split("\r\n\r\n",1)[0]
+    timestamp = timestamp[1:-1]
+    #print(timestamp)
+    session_JSON[ip_port_key]["timestamp"]=timestamp
+    session_JSON[ip_port_key]["txns"]=list()
     #get the full header
     raw_block=iter(block.split('\r\n\r\n\r\n\r\n'))
     for chunk in raw_block:
-        print("followig=====>\n",chunk)
-    '''
-    timestamp = next(raw_block)
-    timestamp = timestamp[1:-1]
-    print(timestamp)
-    session_JSON[ip_port_key]["timestamp"]=timestamp
-    session_JSON[ip_port_key]["txns"]=list()
-    for line in raw_block:
-        request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', line) #\S+\s/\S+\sHTTP/\d\.\d\r\n
-        response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]+\r\n', line)
-        if(request_chunk):
-            print(line)
+        print("=====================================>",chunk.split("\r\n\r\n",1))
+        if len(chunk.split("\r\n\r\n",1))==2:
+            timestamp=chunk.split("\r\n\r\n",1)[0]
+            headerChunk=chunk.split("\r\n\r\n",1)[1]
+        else:
+            continue
+        timestamp = timestamp[1:-1]
+        request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', headerChunk) #\S+\s/\S+\sHTTP/\d\.\d\r\n
+        response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]+\r\n', headerChunk)
+        if(request_chunk):         
             reqCount+=1
             session_JSON[ip_port_key]["txns"].append(dict())
             session_JSON[ip_port_key]["txns"][reqCount]["request"]=dict()
-            next_line = raw_block.next()
+            session_JSON[ip_port_key]["txns"][reqCount]["request"]["timestamp"]=timestamp
+            session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]=headerChunk+"\r\n"
+            #print(session_JSON[ip_port_key]["txns"][reqCount]["request"])
+            '''next_line = raw_block.__next__()
             while next_line:
                 session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]+=next_line + "\r\n"
-                next_line=raw_block.next()
+                print(session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"])
+                next_line=raw_block.__next__()
                 if re.findall(r'\r\n\r\n',next_line):
+                    print(session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"])
                     break
-                          
-            session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]+="\r\n"
-    '''
+            '''
+    
 
 def processFile(trace_dir,file_name):
     global raw_session_dict
@@ -63,6 +98,8 @@ def processFile(trace_dir,file_name):
                 dline=line.decode('utf-8')
                 #print(dline)                
                 send_recv = re.findall(r'(SEND|RECV)', dline)
+                send = re.findall(r'SEND', dline)
+                recv = re.findall(r'RECV', dline)
                 ipv4_port = re.findall(r'[0-9]+(?:\.[0-9]+){3}:[0-9]+', dline)
                 ipv6_port = re.findall(r'(\S+\:)',dline)
                 if ipv4_port:                    
@@ -70,11 +107,12 @@ def processFile(trace_dir,file_name):
                 elif ipv6_port:
                     ip_port_key = ipv6_port[0]
                     print("found",ip_port_key)
-                timestamp = re.findall(r'\[[0-9]+(?:\.[0-9]+)\]',dline)
+                
                 #print(ipv4_port)
                 if send_recv:
                     next_line=f.readline()
-                    #print(timestamp)
+                    timestamp = re.findall(r'\[[0-9]+(?:\.[0-9]+)\]',dline)
+                    print(timestamp)
                     isHttp=re.findall(r'(WIRE TRACE)',next_line.decode('utf-8')) # make sure this is not a log related to ssl stuff, also we only match WIRE TRACE to drop server side stuffs
                     if not isHttp:
                         while next_line: # we don't want the ssl stuff
@@ -89,7 +127,6 @@ def processFile(trace_dir,file_name):
                 #check if this is server side block
                 '''
                 if ipv4_port:
-                    port = re.findall(r':[0-9]+$', ipv4_port[0])
                     if port:
                         if port[0] == ":"+serverPort:                            
                             next_line=f.readline().decode('utf-8')
@@ -104,7 +141,10 @@ def processFile(trace_dir,file_name):
                 if send_recv and (ipv4_port or ipv6_port):                                 
                     #print(methodLine)
                     #get the rest of the block
-                    block = b''
+                    if send:
+                        block = b'SEND\t'
+                    elif recv:
+                        block = b'RECV\t'
                     next_line=f.readline()
                     while next_line:
                         end_trace = re.findall(r'\[End Trace\]', next_line.decode('utf-8'))
@@ -114,9 +154,9 @@ def processFile(trace_dir,file_name):
                         next_line=f.readline()
                     if ip_port_key not in raw_session_dict:
                         raw_session_dict[ip_port_key]=''
-                    block=re.sub(r'(?<!\r)\n', '\r\n\r\n', block.decode('utf-8'))
-                    raw_session_dict[ip_port_key]+=timestamp[0]+'\r\n\r\n'
-                    raw_session_dict[ip_port_key]+=block
+                    #block=re.sub(r'(?<!\r)\n', '\r\n\r\n', block.decode('utf-8'))
+                    raw_session_dict[ip_port_key]+=timestamp[0]+' '
+                    raw_session_dict[ip_port_key]+=block.decode('utf-8')[:-1]+'\t'
                     #request_chunk = re.findall(r'^\S+\s/\S+\sHTTP/\d\.\d\r\n', block)
                     #response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]+\r\n', block)
                     #print(response_chunk)
@@ -142,8 +182,8 @@ def process(trace_dir, out_dir):
         print ("Processing: " + str(file_name))
         processFile(trace_dir,file_name)
     for session,traceblock in raw_session_dict.items():
-        processTraceBlock(traceblock,session)
-    #print(raw_session_dict)
+        processTraceBlock2(traceblock,session)
+    print(len(raw_session_dict))
     '''
     Is the issue with the input or my processing? 
     tmp_file = open('full_trace.json', 'wb')
@@ -299,3 +339,4 @@ def main(argv):
     print("time taken:",(t2-t1))
 if __name__ == "__main__":
     main(sys.argv)
+#!/bin/env python
