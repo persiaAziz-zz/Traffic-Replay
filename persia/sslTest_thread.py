@@ -11,6 +11,7 @@ import extractHeader
 from gevent import monkey, sleep
 from threading import Thread
 import mainProcess
+import json
 #from threading import Thread
 bSTOP = False
 class ssl_socket():
@@ -21,8 +22,37 @@ class ssl_socket():
     def __init__(self, ssl_sock, bStop):
         self.ssl_sock=ssl_sock
         self.bStop = bStop
+def createDummyBodywithLength(numberOfbytes):
+    if numberOfbytes==0:
+        return None
+    body= 'a'
+    while numberOfbytes!=1:
+        body += 'b'
+        numberOfbytes -= 1
+    return body
+
+def generator():
+    yield 'persia'
+    yield 'aziz'
+def SendRequest(ssl_sock, txn_req_headers_dict):
+    if 'Transfer-Encoding' in txn_req_headers_dict and txn_req_headers_dict['Transfer-Encoding'] == 'chunked':
+        writeChunkedData(ssl_sock)
+    if 'Content-Length' in txn_req_headers_dict:
+        nBytes=int(txn_req_headers_dict['Content-Length'])
+        body = createDummyBodywithLength(nBytes);
+        ssl_sock.write(body)
         
-    
+def writeChunkedData(ssl_sock):
+    for chunk in generator():
+        chunk_string=bytes('%X\r\n%s\r\n'%(len(chunk),chunk),'UTF-8')
+        ssl_sock.write(chunk_string)
+    last_chunk=bytes('0\r\n\r\n','UTF-8')
+    ssl_sock.write(last_chunk)
+
+def removeContent_length(txn_req_headers):
+    h1,h2 = txn_req_headers.split('Content-Length')
+    h3,h4 = h2.split('\r\n',1)
+    return h1+h4
 
 def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
     """ Replays a single transaction
@@ -37,13 +67,28 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
     txn_req_headers_dict['Content-MD5'] = txn._uuid  # used as unique identifier
     #print("Replaying session")
     try:
-        txn_req_headers = txn_req_headers[:-2]+"Content-MD5: "+txn._uuid+"\r\n\r\n"
+        txn_req_headers = txn_req_headers[:-2]+"Content-MD5: "+txn._uuid+"\r\n"
         #print(txn_req_headers)
         #requestString=bytes(txn_req_headers,'utf-8')
         #requestString=str.encode(txn_req_headers)
+        if 'Transfer-Encoding' in txn_req_headers_dict and 'Content-Length' in txn_req_headers_dict:
+            txn_req_headers=removeContent_length(txn_req_headers)
+            #print(txn_req_headers)
         s1=b""
         s1 +=txn_req_headers.encode()
-        sendRequest(ssl_sock,s1)
+        s1 +=b'\r\n'
+        ssl_sock.write(s1)
+        if 'Transfer-Encoding' in txn_req_headers_dict and txn_req_headers_dict['Transfer-Encoding'] == 'chunked':
+            writeChunkedData(ssl_sock)
+        elif 'Content-Length' in txn_req_headers_dict:
+            nBytes=int(txn_req_headers_dict['Content-Length'])
+            body = createDummyBodywithLength(nBytes);
+            print("creating body")
+            ssl_sock.write(body)
+        response = ssl_sock.read()
+        if mainProcess.verbose:
+            status=response.decode().split('\r\n')[0]
+            print(status)
         #sendRequest(b'%s' % bytes(txn_req_headers,'utf_8'))
     except UnicodeEncodeError as e:
         # these unicode errors are due to the interaction between Requests and our wiretrace data. 
@@ -56,38 +101,6 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         e=sys.exc_info()
         print("ERROR in requests: ",e)
         
-def sendRequest(ssl_sock, requestString):
-
-    #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    # Require a certificate from the server. We used a self-signed certificate
-    # so here ca_certs must be the server certificate itself.
-    #ssl_sock = ssl.wrap_socket(s,
-    #                           ca_certs="/home/persia/server.pem",
-    #                           cert_reqs=ssl.CERT_OPTIONAL,
-    #                           do_handshake_on_connect=True)
-#
-#                               ca_certs="/home/persia/server.crt",
-    #ssl_sock.connect(('localhost', 443))
-
-
-
-    if True: # from the Python 2.7.3 docs        
-        # read all the data returned by the server.
-        #ssl_sock.write(b"""GET /blabla.jpg HTTP/1.1\r\nHost:example.com\r\n\r\n""") ## working write
-        #ssl_sock.write(b"""GET /uu/api/res/1.2/Qz8h9xMcjAa0Gi3Z0i3t3g--/aD0zMTMuNTtxPTQ1O3c9NjAwLjA7c209MTthcHBpZD15dGFjaHlvbg--/https://s.yimg.com/av/moneyball/ads/1452749457755-3783.jpg HTTP/1.1\r\nAccept: image/png, image/svg+xml, image/*;q=0.8, */*;q=0.5\r\nReferer: https://tw.yahoo.com/\r\nAccept-Language: zh-TW\r\nUser-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko/20100101 Firefox/12.0\r\nAccept-Encoding: gzip, deflate\r\nHost: s.yimg.com\r\nDNT: 1\r\nConnection: Keep-Alive\r\nContent-MD5: 1998496becb64d56b1843530ec163be7\r\n\r\n""")
-        #print(requestString)
-        ssl_sock.write(requestString)
-        data = ssl_sock.read()
-        if mainProcess.verbose:
-            status=data.decode().split('\r\n')[0]
-            print(status)
-        #expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
-        #expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
-        #r = result.Result(session_filename, expected_output[0], response.status_code)
-        #print(r.getResultString(colorize=True))
-        # note that closing the SSLSocket will also close the underlying socket
-        #ssl_sock.close()
 
            
 def client_replay(input, proxy, result_queue, nThread):

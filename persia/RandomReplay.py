@@ -52,46 +52,34 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         #                            headers=txn_req_headers_dict,stream=False) # making stream=False raises contentdecoding exception? kill me
         method = extractHeader.extract_txn_req_method(txn_req_headers)
         response = None
-        if method == 'GET':
+        body=None
+        if 'Transfer-Encoding' in txn_req_headers_dict:
+            # deleting the host key, since the STUPID post/get functions are going to add host field anyway, so there will be multiple host fields in the header
+            # This confuses the ATS and it returns 400 "Invalid HTTP request". I don't believe this
+            # BUT, this is not a problem if the data is not chunked encoded.. Strange, huh?
+            del txn_req_headers_dict['Host']
+            if 'Content-Length' in txn_req_headers_dict:
+                print("ewww !")
+                del txn_req_headers_dict['Content-Length']
+                body = gen()
+        if 'Content-Length' in txn_req_headers_dict:
+            nBytes=int(txn_req_headers_dict['Content-Length'])
+            body = createDummyBodywithLength(nBytes)
+        
+        if method == 'GET':     
             response = request_session.get('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict, stream=True)
-                                    #data=req.getBody(),
-                                    #proxies=proxy,
-                                    #timeout=2.0,
-                                    #stream=True)
-                                    #allow_redirects=False)  # so 302 responses doesn't spin in circles
-                                    #, hooks=dict(response=handleResponse))
+                                    headers=txn_req_headers_dict, stream=True, allow_redirects=False,data=body)
+            if 'Content-Length' in response.headers:
+                    content = response.raw
+                    print("len: {0} received {1}".format(response.headers['Content-Length'],content))
+
         elif method == 'POST':
-            if 'Transfer-Encoding' in txn_req_headers_dict:
-                if 'Content-Length' in txn_req_headers_dict:
-                    print("ewww !")
-                    del txn_req_headers_dict['Content-Length']
-                    
-                
-                # deleting the host key, since the following STUPID post function is going to add host field anyway, so there will be multiple host fields in the header
-                # This confuses the ATS and it returns 400 "Invalid HTTP request". I don't believe this
-                # BUT, this is not a problem if the data is not chunked encoded.. Strange, huh?
-                del txn_req_headers_dict['Host']
-                #dummy header for testing
-                #hdr = {'content-type': 'application/json', 'Accept-Encoding':'gzip, deflate', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)','Proxy-Connection': 'Keep-Alive'}
-                #hdr['Content-MD5']=txn._uuid
-                #print("header is",type(hdr))
-                response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=txn_req_headers_dict, stream=True, data=gen())
-                    
-            else:
-                #dummy header for testing
-                #hdr = {'content-type': 'application/json', 'Accept-Encoding':'gzip, deflate', 'User-Agent': 'YMobile/1.0 (com.yahoo.mobile.client.android.mail/5.7.1; Android/6.0.1; MMB29K; zenltetmo; samsung; SM-G928T; 5.0; 2560x1440;)','Proxy-Connection': 'Keep-Alive'}
-                #hdr['Content-MD5']=txn._uuid
-                if 'Content-Length' in txn_req_headers_dict:
-                    nBytes=int(txn_req_headers_dict['Content-Length'])
-                    body = createDummyBodywithLength(nBytes);
-                    #print("body is: ",body)                
-                jd=json.dumps({'d':'persi\r\n'})
-                #check if body is present
-                #print("body",req.getBody())
-                response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=txn_req_headers_dict, stream=True, data=body) #
+            response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
+                                             headers=txn_req_headers_dict, stream=True, data=body, allow_redirects=False)
+            
+            if 'Content-Length' in response.headers:
+                content = response.raw
+                print("len: {0} received {1}".format(response.headers['Content-Length'],content))
         elif method == 'HEAD':
             response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
                                     headers=txn_req_headers_dict, stream=True)
@@ -111,7 +99,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         print("ContentDecodingError",e)
     except:
         e=sys.exc_info()
-        print("ERROR in requests: ",e,response)
+        print("ERROR in requests: ",e,response, session_filename)
 
 def session_replay(input, proxy, result_queue):
     global bSTOP
