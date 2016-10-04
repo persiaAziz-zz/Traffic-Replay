@@ -15,7 +15,7 @@ raw_session_dict = dict()
 session_JSON = dict()
 serverPort = '443'
 serverIP = '127.0.0.1'
-def processTraceBlock2(block, ip_port_key):
+def processTraceBlock(block, ip_port_key):
     ''' format of the trace block
     [timestamp]\r\n\r\n<SEND|RECV>\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n[timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n................
     '''
@@ -25,7 +25,7 @@ def processTraceBlock2(block, ip_port_key):
     session_JSON[ip_port_key] = dict()
     session_JSON[ip_port_key]["version"] = PROCESSOR_VERSION
     session_JSON[ip_port_key]["encoding"] = "url_encoded"
-    timestamp = block.split("\t",1)[0]
+    timestamp = re.findall(r'\[[0-9]+(?:\.[0-9]+)\]',block)[0]
     timestamp = timestamp[1:-1]
     session_JSON[ip_port_key]["timestamp"]=timestamp
     session_JSON[ip_port_key]["txns"]=list()
@@ -61,47 +61,64 @@ def processTraceBlock2(block, ip_port_key):
                 continue
             if not send_block.endswith('\n\n'):
                 send_block+=next_block
-            #else:
-            #    send_block+=stimestamp+'\n\n'+next_block
-    
+            else:
+                send_block+=stimestamp+'\n\n'+next_block
+    #print("____________________recv_____________________",recv_block)
+    #print("_____________________send____________________",send_block)
     reqCount = -1
     recv_block_iter=iter(recv_block.split('\n\n'))
     send_block_iter=iter(send_block.split('\n\n'))
+    #if len(recv_block_iter) < 2 :
+    #    return
     '''
     format: timestamp\n\nrequest_block\n\nresponse_block......
     '''
     for chunk in recv_block_iter:
-        timestamp=chunk
-        next_block=recv_block_iter.__next__()
-
-        print("....",next_block)
-        if not next_block:
+        try:
+            timestamp=chunk
+            if timestamp == ' ':
+                continue
+            next_block=recv_block_iter.__next__()
+            if not next_block:
+                continue
+            
+            
+            request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
+            #print("....",next_block)
+            if request_chunk:
+                reqCount+=1
+                session_JSON[ip_port_key]["txns"].append(dict())
+                session_JSON[ip_port_key]["txns"][reqCount]["request"]=dict()
+                session_JSON[ip_port_key]["txns"][reqCount]["request"]["timestamp"]=timestamp
+                session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', next_block)+'\r\n\r\n'
+        except StopIteration:
             continue
-        request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
-        if request_chunk:
-            reqCount+=1
-            session_JSON[ip_port_key]["txns"].append(dict())
-            session_JSON[ip_port_key]["txns"][reqCount]["request"]=dict()
-            session_JSON[ip_port_key]["txns"][reqCount]["request"]["timestamp"]=timestamp
-            session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]=chunk+'\r\n'
-
+        
+    
     reqCount = -1   
     for chunk in send_block_iter:
-        timestamp=chunk
-        next_block=send_block_iter.__next__()
-        if not next_block:
+        try:
+            timestamp=chunk
+            if timestamp == ' ':
+                continue
+            next_block=send_block_iter.__next__()
+            if not next_block:
+                continue
+            response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
+            if response_chunk:
+                reqCount+=1
+                print(reqCount)
+                session_JSON[ip_port_key]["txns"].append(dict())
+                session_JSON[ip_port_key]["txns"][reqCount]["response"]=dict()
+                session_JSON[ip_port_key]["txns"][reqCount]["response"]["timestamp"]=timestamp
+                session_JSON[ip_port_key]["txns"][reqCount]["response"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', next_block)+'\r\n\r\n'
+        except StopIteration:
             continue
-        response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
-        if response_chunk:
-            reqCount+=1
-            session_JSON[ip_port_key]["txns"].append(dict())
-            session_JSON[ip_port_key]["txns"][reqCount]["response"]=dict()
-            session_JSON[ip_port_key]["txns"][reqCount]["response"]["timestamp"]=timestamp
-            session_JSON[ip_port_key]["txns"][reqCount]["response"]["headers"]=chunk+'\r\n'
-    print("____________________recv_____________________",session_JSON[ip_port_key]["txns"])
+    print(session_JSON[ip_port_key])
+    #print("____________________recv_____________________",session_JSON[ip_port_key]["txns"])
     #print("_____________________send____________________",send_block)
     
-def processTraceBlock(block, ip_port_key):
+def processTraceBlock__(block, ip_port_key):
     ''' format of the trace block
     [timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n[timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n................
     '''
@@ -240,7 +257,7 @@ def process(trace_dir, out_dir):
         print ("Processing: " + str(file_name))
         processFile(trace_dir,file_name)
     for session,traceblock in raw_session_dict.items():
-        processTraceBlock2(traceblock,session)
+        processTraceBlock(traceblock,session)
     print(len(raw_session_dict))
     '''
     Is the issue with the input or my processing? 
