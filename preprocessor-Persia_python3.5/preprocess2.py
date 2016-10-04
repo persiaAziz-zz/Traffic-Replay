@@ -32,14 +32,27 @@ def processTraceBlock2(block, ip_port_key):
     raw_block=iter(block.split('\t'))
     recv_block=''
     send_block=''
+    # the following for loop concatenates the pieces of requests and responses. It also drops most of the message body
     for chunk in raw_block:
         #print("=================>",chunk)
         if re.findall(r'\[[0-9]+(?:\.[0-9]+)\] RECV',chunk):
-            if not recv_block.endswith('\n\n'):                
-                recv_block+=raw_block.__next__()
+            next_block=raw_block.__next__()
+            request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
+            if request_chunk:
+                recv_block+='\n\n'+next_block
+                continue
+            if not recv_block.endswith('\n\n'):
+                recv_block+=next_block
+            else:
+                recv_block+='\n\n'+next_block
         if re.findall(r'\[[0-9]+(?:\.[0-9]+)\] SEND',chunk):
+            next_block=raw_block.__next__()
+            response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
+            if response_chunk:
+                send_block+='\n\n'+next_block
+                continue
             if not send_block.endswith('\n\n'):
-                send_block+=raw_block.__next__()
+                send_block+=next_block
     print("____________________recv_____________________",recv_block)
     print("_____________________send____________________",send_block)
 
@@ -104,15 +117,15 @@ def processFile(trace_dir,file_name):
                 ipv6_port = re.findall(r'(\S+\:)',dline)
                 if ipv4_port:                    
                     ip_port_key = ipv4_port[0]
-                elif ipv6_port:
+                elif send_recv and ipv6_port:
                     ip_port_key = ipv6_port[0]
-                    print("found",ip_port_key)
+                    #print("found",ip_port_key)
                 
                 #print(ipv4_port)
                 if send_recv:
                     next_line=f.readline()
                     timestamp = re.findall(r'\[[0-9]+(?:\.[0-9]+)\]',dline)
-                    print(timestamp)
+                    #print(timestamp)
                     isHttp=re.findall(r'(WIRE TRACE)',next_line.decode('utf-8')) # make sure this is not a log related to ssl stuff, also we only match WIRE TRACE to drop server side stuffs
                     if not isHttp:
                         while next_line: # we don't want the ssl stuff
