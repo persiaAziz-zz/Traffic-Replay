@@ -83,14 +83,17 @@ def processTraceBlock(block, ip_port_key):
                 continue
             
             
-            request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
-            #print("....",next_block)
+            match = re.search(r'(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
+            if not match:
+                continue
+            request_chunk=next_block[match.start():]
+            #print("....",match.start(),request_chunk)
             if request_chunk:
                 reqCount+=1
                 session_JSON[ip_port_key]["txns"].append(dict())
                 session_JSON[ip_port_key]["txns"][reqCount]["request"]=dict()
                 session_JSON[ip_port_key]["txns"][reqCount]["request"]["timestamp"]=timestamp
-                session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', next_block)+'\r\n\r\n'
+                session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', request_chunk)+'\r\n\r\n'
         except StopIteration:
             continue
         
@@ -104,14 +107,17 @@ def processTraceBlock(block, ip_port_key):
             next_block=send_block_iter.__next__()
             if not next_block:
                 continue
-            response_chunk = re.findall(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
+            match = re.search(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
+            if not match:
+                continue
+            response_chunk=next_block[match.start():]
             if response_chunk:
                 reqCount+=1
-                print(reqCount)
+                #print(reqCount)
                 session_JSON[ip_port_key]["txns"].append(dict())
                 session_JSON[ip_port_key]["txns"][reqCount]["response"]=dict()
                 session_JSON[ip_port_key]["txns"][reqCount]["response"]["timestamp"]=timestamp
-                session_JSON[ip_port_key]["txns"][reqCount]["response"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', next_block)+'\r\n\r\n'
+                session_JSON[ip_port_key]["txns"][reqCount]["response"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', response_chunk)+'\r\n\r\n'
         except StopIteration:
             continue
     print(session_JSON[ip_port_key])
