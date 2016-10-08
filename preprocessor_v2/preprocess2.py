@@ -39,11 +39,12 @@ def processTraceBlock(block, ip_port_key):
         recv_chunk = re.findall(r'\[[0-9]+(?:\.[0-9]+)\] RECV',chunk)
         send_chunk = re.findall(r'\[[0-9]+(?:\.[0-9]+)\] SEND',chunk)
         if recv_chunk:
-            #print("=================>",recv_chunk[0])
+
             rtimestamp = re.findall(r'\[[0-9]+(?:\.[0-9]+)\]',recv_chunk[0])[0]
             rtimestamp = rtimestamp[1:-1]
             next_block=raw_block.__next__()
             request_chunk = re.findall(r'^(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
+            
             if request_chunk:
                 recv_block+=rtimestamp+'\n\n'+next_block
                 continue
@@ -63,8 +64,8 @@ def processTraceBlock(block, ip_port_key):
                 send_block+=next_block
             else:
                 send_block+=stimestamp+'\n\n'+next_block
-    #print("____________________recv_____________________",recv_block)
-    #print("_____________________send____________________",send_block)
+    print("____________________recv_____________________",recv_block)
+    print("_____________________send____________________",send_block)
     reqCount = -1
     recv_block_iter=iter(recv_block.split('\n\n'))
     send_block_iter=iter(send_block.split('\n\n'))
@@ -83,10 +84,14 @@ def processTraceBlock(block, ip_port_key):
                 continue
             
             
-            match = re.search(r'(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d', next_block)
+            match = re.search(r'(GET|HEAD|POST)\s/\S+\sHTTP/\d\.\d\s\S+', next_block)
             if not match:
+                if ip_port_key == "24.6.24.47:52012":
+                    print("NOT MATCHING=================>",next_block)
                 continue
             request_chunk=next_block[match.start():]
+            if ip_port_key == "24.6.24.47:52012":
+                print("MATCHING=================>",request_chunk)
             #print("....",match.start(),request_chunk)
             if request_chunk:
                 reqCount+=1
@@ -94,6 +99,7 @@ def processTraceBlock(block, ip_port_key):
                 session_JSON[ip_port_key]["txns"][reqCount]["request"]=dict()
                 session_JSON[ip_port_key]["txns"][reqCount]["request"]["timestamp"]=timestamp
                 session_JSON[ip_port_key]["txns"][reqCount]["request"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', request_chunk)+'\r\n\r\n'
+                session_JSON[ip_port_key]["txns"][reqCount]["uuid"]=uuid.uuid4().hex
         except StopIteration:
             continue
         
@@ -101,13 +107,16 @@ def processTraceBlock(block, ip_port_key):
     reqCount = -1   
     for chunk in send_block_iter:
         try:
-            timestamp=chunk
-            if timestamp == ' ':
-                continue
+            mTimestamp=re.search(r'\d{10}\.\d{3}',chunk)
+            if not mTimestamp:
+                timestamp=None
+            else:
+                timestamp = chunk[mTimestamp.start():mTimestamp.end()]
+                print("timestamp match",timestamp)
             next_block=send_block_iter.__next__()
             if not next_block:
                 continue
-            match = re.search(r'^HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
+            match = re.search(r'HTTP/\d\.\d\s\d{3}\s[\s\S]', next_block)
             if not match:
                 continue
             response_chunk=next_block[match.start():]
@@ -116,14 +125,29 @@ def processTraceBlock(block, ip_port_key):
                 #print(reqCount)
                 session_JSON[ip_port_key]["txns"].append(dict())
                 session_JSON[ip_port_key]["txns"][reqCount]["response"]=dict()
-                session_JSON[ip_port_key]["txns"][reqCount]["response"]["timestamp"]=timestamp
+                session_JSON[ip_port_key]["txns"][reqCount]["response"]["timestamp"]=timestamp                
                 session_JSON[ip_port_key]["txns"][reqCount]["response"]["headers"]=re.sub(r'(?<!\r)\n', '\r\n', response_chunk)+'\r\n\r\n'
         except StopIteration:
             continue
-    print(session_JSON[ip_port_key])
+    #print(session_JSON[ip_port_key])
     #print("____________________recv_____________________",session_JSON[ip_port_key]["txns"])
     #print("_____________________send____________________",send_block)
-    
+
+def writeToDisk(out_dir):
+    unicode_errors = 0
+    print( "Writing sessions to disk")
+    out_files = dict()
+    for session, data in session_JSON.items():
+        out_files[session] = open(os.path.join(out_dir, 'session_' + str(session)) + '.json', 'w')
+        try:
+            json.dump(data, out_files[session])
+            out_files[session].close()     
+        except:
+            unicode_errors += 1
+            out_files[session].close()
+            os.remove(os.path.join(out_dir, 'session_' + str(session)) + '.json')     
+
+    print( str(unicode_errors) + " unicode errors")
 def processTraceBlock__(block, ip_port_key):
     ''' format of the trace block
     [timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n[timestamp]\r\n\r\n<REQUEST HEADER>\r\n\r\n\r\n\r\nbody\r\n\r\n................
@@ -265,6 +289,7 @@ def process(trace_dir, out_dir):
     for session,traceblock in raw_session_dict.items():
         processTraceBlock(traceblock,session)
     print(len(raw_session_dict))
+    writeToDisk(out_dir)
     '''
     Is the issue with the input or my processing? 
     tmp_file = open('full_trace.json', 'wb')
@@ -404,7 +429,7 @@ def main(argv):
         print( "Outputs JSONs to directory 'sessions'")
         print( "Usage: python " + str(argv[0]) + " <in directory> <out directory>")
         return
-    '''
+    
     if not os.path.isdir(argv[1]):
         print( str(argv[1]) + " is not a directory. Aborting.")
         return
@@ -413,7 +438,7 @@ def main(argv):
     else:
         print( str(argv[2]) + " already exists, choose another output directory!")
         return
-    '''
+    
     t1=time.time()
     process(argv[1], argv[2])
     t2=time.time()
