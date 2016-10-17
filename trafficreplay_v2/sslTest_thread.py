@@ -29,7 +29,7 @@ def createDummyBodywithLength(numberOfbytes):
     while numberOfbytes!=1:
         body += 'b'
         numberOfbytes -= 1
-    return body
+    return bytes(body,'UTF-8')
 
 def generator():
     yield 'persia'
