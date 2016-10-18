@@ -12,7 +12,17 @@ def extract_host(headers):
             return line.split(' ')[1]
     return "notfound"
 
+def responseHeader_to_dict(header):
+    headerFields = header.split('\r\n',1)[1]
+    fields =headerFields.split('\r\n')
+    header = [x for x in fields if (x != u'')]
+    headers = {}
+    for line in header:
+        split_here = line.find(":")
+        headers[line[:split_here]] = line[(split_here + 1):].strip()
 
+    return headers        
+        
 def header_to_dict(header):
     ''' Convert a HTTP header in string format to a python dictionary
     Returns a dictionary of header values

@@ -10,7 +10,7 @@ class TermColors:
     UNDERLINE = '\033[4m'
     ENDC = '\033[0m'
 
-
+ignoredFields = {'Age', 'Content-Length', 'Server'}
 class Result(object):
     ''' Result encapsulates the result of a single session replay '''
 
@@ -32,10 +32,19 @@ class Result(object):
             return self._received_response_body
         else:
             return ""
-
-    def getResultString(self, colorize=False):
+    def Compare(self, received_dict, expected_dict):
+        global ignoredFields
+        for key in received_dict:
+            if key in expected_dict and key not in ignoredFields:
+                if received_dict[key]!=expected_dict[key]:
+                    print("{0}Difference in the field \"{1}\": \n received:\n{2}\n expected:\n{3}{4}".format(TermColors.FAIL,key,received_dict[key],expected_dict[key],TermColors.ENDC))
+                    return False
+        return True
+        
+    def getResultString(self, received_dict, expected_dict, colorize=False ):
+        global ignoredFields
         ''' Return a nicely formatted result string with color if requested '''
-        if self.getResultBool():
+        if self.getResultBool() and self.Compare(received_dict,expected_dict):
             if colorize:
                 outstr = "{0}PASS{1}".format(
                     TermColors.OKGREEN, TermColors.ENDC)

@@ -59,7 +59,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
             # BUT, this is not a problem if the data is not chunked encoded.. Strange, huh?
             del txn_req_headers_dict['Host']
             if 'Content-Length' in txn_req_headers_dict:
-                print("ewww !")
+                #print("ewww !")
                 del txn_req_headers_dict['Content-Length']
                 body = gen()
         if 'Content-Length' in txn_req_headers_dict:
@@ -71,7 +71,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
                                     headers=txn_req_headers_dict, stream=True, allow_redirects=False,data=body)
             if 'Content-Length' in response.headers:
                     content = response.raw
-                    print("len: {0} received {1}".format(response.headers['Content-Length'],content))
+                    #print("len: {0} received {1}".format(response.headers['Content-Length'],content))
 
         elif method == 'POST':
             response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
@@ -79,15 +79,21 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
             
             if 'Content-Length' in response.headers:
                 content = response.raw
-                print("len: {0} received {1}".format(response.headers['Content-Length'],content))
+                #print("len: {0} received {1}".format(response.headers['Content-Length'],content))
         elif method == 'HEAD':
             response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
                                     headers=txn_req_headers_dict, stream=True)
+        
+        #print(response.headers)
+        #print("logged respose")
+        expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
+        #print(expected)
         if mainProcess.verbose:
             expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
             expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
             r = result.Result(session_filename, expected_output[0], response.status_code)
-            print(r.getResultString(colorize=True))
+            print(r.getResultString(response.headers,expected,colorize=True))
+            #r.Compare(response.headers,expected)
         #result_queue.put(r)
         #print("response", response.status_code)
     except UnicodeEncodeError as e:
