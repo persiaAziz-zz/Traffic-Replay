@@ -69,7 +69,8 @@ def txn_replay(session_filename, txn, proxy, result_queue, h2conn,request_IDs):
         if 'Content-Length' in txn_req_headers_dict:
             nBytes=int(txn_req_headers_dict['Content-Length'])
             mbody = createDummyBodywithLength(nBytes)
-        #extractHeader.extract_host(txn_req_headers)+ extractHeader.extract_GET_path(txn_req_headers)
+        str2 = extractHeader.extract_host(txn_req_headers)+ extractHeader.extract_GET_path(txn_req_headers)
+        print(str2)
         if method == 'GET':
             #,'Connection': 'Keep-Alive','Cache-Control': 'no-cache'
             #'Accept': '*/*','Referer': 'https://www.yahoo.com','Accept-Language': 'en-US', 'Host': 'video-api.yql.yahoo.com','User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko/20100101 Firefox/12.0','DNT': '1',
