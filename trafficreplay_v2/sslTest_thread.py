@@ -12,6 +12,7 @@ from gevent import monkey, sleep
 from threading import Thread
 import mainProcess
 import json
+import extractHeader
 #from threading import Thread
 bSTOP = False
 class ssl_socket():
@@ -83,12 +84,22 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         elif 'Content-Length' in txn_req_headers_dict:
             nBytes=int(txn_req_headers_dict['Content-Length'])
             body = createDummyBodywithLength(nBytes);
-            print("creating body")
+            #print("creating body")
             ssl_sock.write(body)
         response = ssl_sock.read()
         if mainProcess.verbose:
             status=response.decode().split('\r\n')[0]
-            print(status)
+            received_status = int(status.split(' ',2)[1])
+            expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
+            expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
+
+            received=extractHeader.responseHeader_to_dict(response.decode('utf-8'))
+            expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
+            r = result.Result(session_filename, expected_output[0], received_status)
+            #print("received",received)
+            #print("expected",expected)
+            print(r.getResultString(received,expected,colorize=True))
+
         #sendRequest(b'%s' % bytes(txn_req_headers,'utf_8'))
     except UnicodeEncodeError as e:
         # these unicode errors are due to the interaction between Requests and our wiretrace data. 
@@ -125,7 +136,7 @@ def session_replay(input, proxy, result_queue):
         for session in iter(input.get, 'STOP'):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             ssl_sock = ssl.wrap_socket(s,
-                                ca_certs="/home/persia/server.pem",
+                                ca_certs="/home/persia/config/server.pem",
                                 cert_reqs=ssl.CERT_OPTIONAL,
                                 do_handshake_on_connect=True)
 
