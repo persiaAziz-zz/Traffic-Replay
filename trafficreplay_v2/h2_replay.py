@@ -1,5 +1,5 @@
 import json
-from hyper import HTTPConnection
+from hyper import HTTP20Connection
 import hyper
 
 hyper.tls._context = hyper.tls.init_context()

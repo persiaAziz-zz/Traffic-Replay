@@ -89,16 +89,18 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         response = ssl_sock.read()
         if mainProcess.verbose:
             status=response.decode().split('\r\n')[0]
-            received_status = int(status.split(' ',2)[1])
-            expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
-            expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
+            splits = status.split(' ',2)
+            if len(splits) > 1:
+                received_status = int(status.split(' ',2)[1])
+                expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
+                expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
 
-            received=extractHeader.responseHeader_to_dict(response.decode('utf-8'))
-            expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
-            r = result.Result(session_filename, expected_output[0], received_status)
-            #print("received",received)
-            #print("expected",expected)
-            print(r.getResultString(received,expected,colorize=True))
+                received=extractHeader.responseHeader_to_dict(response.decode('utf-8'))
+                expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
+                r = result.Result(session_filename, expected_output[0], received_status)
+                #print("received",received)
+                #print("uuid",txn._uuid)
+                print(r.getResultString(received,expected,colorize=True))
 
         #sendRequest(b'%s' % bytes(txn_req_headers,'utf_8'))
     except UnicodeEncodeError as e:
@@ -144,6 +146,7 @@ def session_replay(input, proxy, result_queue):
             sslSocket=ssl_socket(ssl_sock,True)
             for txn in session.getTransactionIter():
                 try:
+                    print(txn._uuid)
                     txn_replay(session._filename, txn, proxy, result_queue, ssl_sock)
                 except:
                     e=sys.exc_info()
