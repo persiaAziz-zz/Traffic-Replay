@@ -10,7 +10,7 @@ class TermColors:
     UNDERLINE = '\033[4m'
     ENDC = '\033[0m'
 
-ignoredFields = {'Age', 'Content-Length', 'Server'}
+ignoredFields = {'Age', 'Set-Cookie', 'Server'}
 class Result(object):
     ''' Result encapsulates the result of a single session replay '''
 
