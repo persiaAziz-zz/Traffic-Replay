@@ -75,8 +75,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, h2conn,request_IDs):
         #str2 = extractHeader.extract_host(txn_req_headers)+ extractHeader.extract_GET_path(txn_req_headers)
         #print(str2)
         if method == 'GET':
-            responseID = h2conn.request('GET',url=extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict)
+            responseID = h2conn.request('GET',url=extractHeader.extract_GET_path(txn_req_headers),headers=txn_req_headers_dict, body=mbody)
             print("get response", responseID)
             return responseID
             #request_IDs.append(responseID)
@@ -85,18 +84,17 @@ def txn_replay(session_filename, txn, proxy, result_queue, h2conn,request_IDs):
             #if 'Content-Length' in response.headers:
             #        content = response.read()
                     #print("len: {0} received {1}".format(response.headers['Content-Length'],content))
-        '''
+
         elif method == 'POST':
-            response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=txn_req_headers_dict, stream=True, data=body, allow_redirects=False)
+            responseID = h2conn.request('POST',url=extractHeader.extract_GET_path(txn_req_headers),headers=txn_req_headers_dict, body=mbody)
+            print("get response", responseID)
+            return responseID
             
-            if 'Content-Length' in response.headers:
-                content = response.raw
-                #print("len: {0} received {1}".format(response.headers['Content-Length'],content))
         elif method == 'HEAD':
-            response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict, stream=True)
-        '''
+            responseID = h2conn.request('HEAD',url=extractHeader.extract_GET_path(txn_req_headers),headers=txn_req_headers_dict)
+            print("get response", responseID)
+            return responseID
+
         #print(response.headers)
         #print("logged respose")
         expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
