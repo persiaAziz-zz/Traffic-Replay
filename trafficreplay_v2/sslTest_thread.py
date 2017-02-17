@@ -13,6 +13,7 @@ from threading import Thread
 import mainProcess
 import json
 import extractHeader
+import time
 #from threading import Thread
 bSTOP = False
 class ssl_socket():
@@ -66,7 +67,6 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
     txn_req_headers = req.getHeaders()
     txn_req_headers_dict = extractHeader.header_to_dict(txn_req_headers)
     txn_req_headers_dict['Content-MD5'] = txn._uuid  # used as unique identifier
-    #print("Replaying session")
     try:
         txn_req_headers = txn_req_headers[:-2]+"Content-MD5: "+txn._uuid+"\r\n"
         #print(txn_req_headers)
@@ -84,12 +84,14 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         elif 'Content-Length' in txn_req_headers_dict:
             nBytes=int(txn_req_headers_dict['Content-Length'])
             body = createDummyBodywithLength(nBytes);
-            #print("creating body")
-            ssl_sock.write(body)
+            if body!=None:
+                ssl_sock.write(body)
+        #read the response
         response = ssl_sock.read()
         if mainProcess.verbose:
             status=response.decode().split('\r\n')[0]
             splits = status.split(' ',2)
+            print("status is",status)
             if len(splits) > 1:
                 received_status = int(status.split(' ',2)[1])
                 expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
@@ -98,8 +100,6 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
                 received=extractHeader.responseHeader_to_dict(response.decode('utf-8'))
                 expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
                 r = result.Result(session_filename, expected_output[0], received_status)
-                #print("received",received)
-                #print("uuid",txn._uuid)
                 print(r.getResultString(received,expected,colorize=True))
 
         #sendRequest(b'%s' % bytes(txn_req_headers,'utf_8'))
@@ -134,6 +134,7 @@ def session_replay(input, proxy, result_queue):
     #if timing_control:
     #    time.sleep(float(session._timestamp))  # allow other threads to run
     global bSTOP
+    sslSocks = []
     while bSTOP == False:
         for session in iter(input.get, 'STOP'):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -144,16 +145,22 @@ def session_replay(input, proxy, result_queue):
 
             ssl_sock.connect(('localhost', 443))
             sslSocket=ssl_socket(ssl_sock,True)
+            sslSocks.append(sslSocket)
             for txn in session.getTransactionIter():
                 try:
-                    print(txn._uuid)
+                    #print(txn._uuid)
                     txn_replay(session._filename, txn, proxy, result_queue, ssl_sock)
                 except:
                     e=sys.exc_info()
                     print("ERROR in replaying: ",e,txn.getRequest().getHeaders())
             sslSocket.bStop = False
-            sslSocket.ssl_sock.close()
+
         bSTOP = True
         print("stopping now")
         input.put('STOP')
         break
+
+    time.sleep(1)
+    for sslSock in sslSocks:
+        sslSock.ssl_sock.close()
+        print("closing here")
