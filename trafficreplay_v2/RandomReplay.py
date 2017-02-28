@@ -12,7 +12,7 @@ import mainProcess
 import json
 bSTOP = False
 def createDummyBodywithLength(numberOfbytes):
-    if numberOfbytes==0:
+    if numberOfbytes<=0:
         return None
     body= 'a'
     while numberOfbytes!=1:

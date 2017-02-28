@@ -25,7 +25,7 @@ class ssl_socket():
         self.ssl_sock=ssl_sock
         self.bStop = bStop
 def createDummyBodywithLength(numberOfbytes):
-    if numberOfbytes==0:
+    if numberOfbytes<=0:
         return None
     body= 'a'
     while numberOfbytes!=1:
