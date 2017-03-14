@@ -65,7 +65,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         if 'Content-Length' in txn_req_headers_dict:
             nBytes=int(txn_req_headers_dict['Content-Length'])
             body = createDummyBodywithLength(nBytes)
-        
+        print("request session is",id(request_session))
         if method == 'GET':     
             response = request_session.get('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
                                     headers=txn_req_headers_dict, stream=True, allow_redirects=False,data=body)

@@ -138,10 +138,12 @@ def session_replay(input, proxy, result_queue):
     while bSTOP == False:
         for session in iter(input.get, 'STOP'):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            ssl_sock = ssl.wrap_socket(s,
-                                ca_certs="/home/persia/config/server.pem",
-                                cert_reqs=ssl.CERT_OPTIONAL,
-                                do_handshake_on_connect=True)
+            sc = ssl.SSLContext(protocol=ssl.PROTOCOL_SSLv23)
+            sc.load_cert_chain("/home/persia/config/server.pem",keyfile="/home/persia/config/server.pem")
+            ssl_sock = sc.wrap_socket(s,
+                                do_handshake_on_connect=True,
+                                server_side=False,
+                                server_hostname="blabla")
 
             ssl_sock.connect(('localhost', 443))
             sslSocket=ssl_socket(ssl_sock,True)

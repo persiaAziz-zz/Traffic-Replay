@@ -9,12 +9,139 @@ import extractHeader
 import mainProcess
 import json
 from hyper import HTTP20Connection
+from hyper.tls import wrap_socket, H2_NPN_PROTOCOLS, H2C_PROTOCOL
+from hyper.common.bufsocket import BufferedSocket
 import hyper
+import socket
+import logging
+import h2
+from h2.connection import H2Configuration
+import threading
 
+log = logging.getLogger(__name__)
 bSTOP = False
 hyper.tls._context = hyper.tls.init_context()
 hyper.tls._context.check_hostname = False
 hyper.tls._context.verify_mode = hyper.compat.ssl.CERT_NONE
+class _LockedObject(object):
+    """
+    A wrapper class that hides a specific object behind a lock.
+
+    The goal here is to provide a simple way to protect access to an object
+    that cannot safely be simultaneously accessed from multiple threads. The
+    intended use of this class is simple: take hold of it with a context
+    manager, which returns the protected object.
+    """
+    def __init__(self, obj):
+        self.lock = threading.RLock()
+        self._obj = obj
+
+    def __enter__(self):
+        self.lock.acquire()
+        return self._obj
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        self.lock.release()
+
+
+class h2ATS(HTTP20Connection):
+    
+    
+    def __init_state(self):
+        """
+        Initializes the 'mutable state' portions of the HTTP/2 connection
+        object.
+
+        This method exists to enable HTTP20Connection objects to be reused if
+        they're closed, by resetting the connection object to its basic state
+        whenever it ends up closed. Any situation that needs to recreate the
+        connection can call this method and it will be done.
+
+        This is one of the only methods in hyper that is truly private, as
+        users should be strongly discouraged from messing about with connection
+        objects themselves.
+        """
+
+        config1 = H2Configuration(
+                client_side=True,
+                header_encoding='utf-8',
+                validate_outbound_headers=False,
+                validate_inbound_headers=False,
+
+            )
+        self._conn = _LockedObject(h2.connection.H2Connection(config=config1))
+
+        # Streams are stored in a dictionary keyed off their stream IDs. We
+        # also save the most recent one for easy access without having to walk
+        # the dictionary.
+        #
+        # We add a set of all streams that we or the remote party forcefully
+        # closed with RST_STREAM, to avoid encountering issues where frames
+        # were already in flight before the RST was processed.
+        #
+        # Finally, we add a set of streams that recently received data.  When
+        # using multiple threads, this avoids reading on threads that have just
+        # acquired the I/O lock whose streams have already had their data read
+        # for them by prior threads.
+        self.streams = {}
+        self.recent_stream = None
+        self.next_stream_id = 1
+        self.reset_streams = set()
+        self.recent_recv_streams = set()
+
+        # The socket used to send data.
+        self._sock = None
+
+        # Instantiate a window manager.
+        #self.window_manager = self.__wm_class(65535)
+
+        return
+
+    def __init__(self,host,**kwargs):
+        HTTP20Connection.__init__(self,host,**kwargs)
+        self.__init_state()
+    
+    def connect(self):
+        """
+        Connect to the server specified when the object was created. This is a
+        no-op if we're already connected.
+
+        Concurrency
+        -----------
+
+        This method is thread-safe. It may be called from multiple threads, and
+        is a noop for all threads apart from the first.
+
+        :returns: Nothing.
+
+        """
+        print("connecting to ATS")
+        with self._lock:
+            if self._sock is not None:
+                return
+            sni = self.host
+            if not self.proxy_host:
+                host = self.host
+                port = self.port
+            else:
+                host = self.proxy_host
+                port = self.proxy_port
+
+            sock = socket.create_connection((host, port))
+
+            if self.secure:
+                #assert not self.proxy_host, "Proxy with HTTPS not supported."
+                sock, proto = wrap_socket(sock, sni, self.ssl_context,
+                                          force_proto=self.force_proto)
+            else:
+                proto = H2C_PROTOCOL
+
+            log.debug("Selected NPN protocol: %s", proto)
+            assert proto in H2_NPN_PROTOCOLS or proto == H2C_PROTOCOL
+
+            self._sock = BufferedSocket(sock, self.network_buffer_size)
+
+            self._send_preamble()
 
 def createDummyBodywithLength(numberOfbytes):
     if numberOfbytes==0:
@@ -130,7 +257,7 @@ def session_replay(input, proxy, result_queue):
                 print("Queue is empty")
                 bSTOP = True
                 break
-            with HTTP20Connection('localhost:443', secure=True) as h2conn:
+            with h2ATS('blablaland', secure=True, proxy_host="127.0.0.1",proxy_port=443) as h2conn:
                 request_IDs = []
                 for txn in session.getTransactionIter():
                     try:
