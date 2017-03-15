@@ -67,6 +67,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
     txn_req_headers = req.getHeaders()
     txn_req_headers_dict = extractHeader.header_to_dict(txn_req_headers)
     txn_req_headers_dict['Content-MD5'] = txn._uuid  # used as unique identifier
+    print("txn id------------------------------",txn._uuid)
     try:
         txn_req_headers = txn_req_headers[:-2]+"Content-MD5: "+txn._uuid+"\r\n"
         #print(txn_req_headers)
@@ -91,8 +92,8 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         if mainProcess.verbose:
             status=response.decode().split('\r\n')[0]
             splits = status.split(' ',2)
-            print("status is",status)
             if len(splits) > 1:
+                print("status is",splits[1])
                 received_status = int(status.split(' ',2)[1])
                 expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
                 expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
@@ -162,7 +163,6 @@ def session_replay(input, proxy, result_queue):
         input.put('STOP')
         break
 
-    time.sleep(1)
+    time.sleep(0.5)
     for sslSock in sslSocks:
         sslSock.ssl_sock.close()
-        print("closing here")
