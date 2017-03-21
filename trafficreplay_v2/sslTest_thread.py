@@ -14,6 +14,7 @@ import mainProcess
 import json
 import extractHeader
 import time
+import Config
 #from threading import Thread
 bSTOP = False
 class ssl_socket():
@@ -146,7 +147,7 @@ def session_replay(input, proxy, result_queue):
                                 server_side=False,
                                 server_hostname="blabla")
 
-            ssl_sock.connect(('localhost', 443))
+            ssl_sock.connect((Config.proxy_host, Config.proxy_ssl_port))
             sslSocket=ssl_socket(ssl_sock,True)
             sslSocks.append(sslSocket)
             for txn in session.getTransactionIter():
