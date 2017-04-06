@@ -93,7 +93,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
         responseFile.write(response.decode())
         if mainProcess.verbose:
             print(response)
-            status=response.decode().split('\r\n')[0]
+            status = response.decode().split('\r\n')[0]
             splits = status.split(' ',2)
             if len(splits) > 1:
                 print("status is",splits[1])
@@ -101,8 +101,8 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
                 expected_output_split = resp.getHeaders().split('\r\n')[ 0].split(' ', 2)
                 expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
 
-                received=extractHeader.responseHeader_to_dict(response.decode('utf-8'))
-                expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
+                received = extractHeader.responseHeader_to_dict(response.decode('utf-8'))
+                expected = extractHeader.responseHeader_to_dict(resp.getHeaders())
                 r = result.Result(session_filename, expected_output[0], received_status)
                 print(r.getResultString(received,expected,colorize=True))
 
@@ -141,13 +141,18 @@ def session_replay(input, proxy, result_queue):
     sslSocks = []
     while bSTOP == False:
         for session in iter(input.get, 'STOP'):
+            txn = session.returnFirstTransaction()
+            req = txn.getRequest()
+            # Construct HTTP request & fire it off
+            txn_req_headers = req.getHeaders()
+            txn_req_headers_dict = extractHeader.header_to_dict(txn_req_headers)
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sc = ssl.SSLContext(protocol=ssl.PROTOCOL_SSLv23)
             sc.load_cert_chain(Config.ca_certs,keyfile=Config.keyfile)
             ssl_sock = sc.wrap_socket(s,
                                 do_handshake_on_connect=True,
                                 server_side=False,
-                                server_hostname="blabla")
+                                server_hostname=txn_req_headers_dict['Host'])
 
             ssl_sock.connect((Config.proxy_host, Config.proxy_ssl_port))
             sslSocket=ssl_socket(ssl_sock,True)

@@ -9,22 +9,16 @@ import sessionvalidation.sessionvalidation as sv
 import lib.result as result
 from progress.bar import Bar
 import extractHeader
-import fastestReplay
 import RandomReplay
-import TimelyReplay
-import sslTest_thread
+import sslReplay
 import h2Replay
 def worker(input,output,proxy,replay_type,nThread):
     #progress_bar = Bar(" Replaying sessions {0}".format(current_process().name), max=input.qsize())
         #print("playing {0}=>{1}:{2}".format(current_process().name,session._timestamp,proxy))
     if replay_type == 'random':
         RandomReplay.client_replay(input, proxy, output, nThread)
-    elif replay_type == 'fast':
-        fastestReplay.fastReplay(input, proxy, output)
-    elif replay_type == 'timed':
-        TimelyReplay.fastReplay(input, proxy, output)
     elif replay_type == 'ssl':
-        sslTest_thread.client_replay(input, proxy, output,nThread)
+        sslReplay.client_replay(input, proxy, output,nThread)
     elif replay_type == 'h2':
         h2Replay.client_replay(input, proxy, output,nThread)
         #progress_bar.next()
