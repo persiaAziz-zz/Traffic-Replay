@@ -17,6 +17,7 @@ import logging
 import h2
 from h2.connection import H2Configuration
 import threading
+import Config
 
 log = logging.getLogger(__name__)
 bSTOP = False
@@ -184,7 +185,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, h2conn,request_IDs):
         method = extractHeader.extract_txn_req_method(txn_req_headers)
         response = None
         mbody=None
-        txn_req_headers_dict['Host'] = "localhost"
+        #txn_req_headers_dict['Host'] = "localhost"
         if 'Transfer-Encoding' in txn_req_headers_dict:
             # deleting the host key, since the STUPID post/get functions are going to add host field anyway, so there will be multiple host fields in the header
             # This confuses the ATS and it returns 400 "Invalid HTTP request". I don't believe this
@@ -257,7 +258,12 @@ def session_replay(input, proxy, result_queue):
                 print("Queue is empty")
                 bSTOP = True
                 break
-            with h2ATS('blablaland', secure=True, proxy_host="127.0.0.1",proxy_port=443) as h2conn:
+            txn = session.returnFirstTransaction()
+            req = txn.getRequest()
+            # Construct HTTP request & fire it off
+            txn_req_headers = req.getHeaders()
+            txn_req_headers_dict = extractHeader.header_to_dict(txn_req_headers)
+            with h2ATS(txn_req_headers_dict['Host'], secure=True, proxy_host=Config.proxy_host,proxy_port=Config.proxy_ssl_port) as h2conn:
                 request_IDs = []
                 respList = []
                 for txn in session.getTransactionIter():
