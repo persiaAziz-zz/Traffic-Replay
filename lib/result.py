@@ -10,7 +10,7 @@ class TermColors:
     UNDERLINE = '\033[4m'
     ENDC = '\033[0m'
 
-ignoredFields = {'Age', 'Set-Cookie', 'Server', 'Date'}
+ignoredFields = {'age', 'set-cookie', 'server', 'date', 'last-modified', 'via', 'expires','cache-control'} #all lower case
 class Result(object):
     ''' Result encapsulates the result of a single session replay '''
 
@@ -35,8 +35,10 @@ class Result(object):
     def Compare(self, received_dict, expected_dict):
         global ignoredFields
         for key in received_dict:
-            if key in expected_dict and key not in ignoredFields:
-                if received_dict[key]!=expected_dict[key]:
+            #print(key)
+            if key.lower() in expected_dict and key.lower() not in ignoredFields:
+                #print("{0} ==? {1}".format(expected_dict[key.lower()],received_dict[key]))
+                if received_dict[key]!=expected_dict[key.lower()]:
                     print("{0}Difference in the field \"{1}\": \n received:\n{2}\n expected:\n{3}{4}".format(TermColors.FAIL,key,received_dict[key],expected_dict[key],TermColors.ENDC))
                     return False
         return True

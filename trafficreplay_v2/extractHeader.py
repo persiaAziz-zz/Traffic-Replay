@@ -19,7 +19,7 @@ def responseHeader_to_dict(header):
     headers = {}
     for line in header:
         split_here = line.find(":")
-        headers[line[:split_here]] = line[(split_here + 1):].strip()
+        headers[line[:split_here].lower()] = line[(split_here + 1):].strip()
 
     return headers        
         

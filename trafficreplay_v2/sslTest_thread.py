@@ -17,6 +17,7 @@ import time
 import Config
 #from threading import Thread
 bSTOP = False
+responseFile = open('sslresponse.txt','w')
 class ssl_socket():
    
     def readFromWire(self):
@@ -68,7 +69,6 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
     txn_req_headers = req.getHeaders()
     txn_req_headers_dict = extractHeader.header_to_dict(txn_req_headers)
     txn_req_headers_dict['Content-MD5'] = txn._uuid  # used as unique identifier
-    print("txn id------------------------------",txn._uuid)
     try:
         txn_req_headers = txn_req_headers[:-2]+"Content-MD5: "+txn._uuid+"\r\n"
         #print(txn_req_headers)
@@ -90,7 +90,9 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
                 ssl_sock.write(body)
         #read the response
         response = ssl_sock.read()
+        responseFile.write(response.decode())
         if mainProcess.verbose:
+            print(response)
             status=response.decode().split('\r\n')[0]
             splits = status.split(' ',2)
             if len(splits) > 1:
@@ -164,6 +166,6 @@ def session_replay(input, proxy, result_queue):
         input.put('STOP')
         break
 
-    time.sleep(0.5)
+    #time.sleep(0.5)
     for sslSock in sslSocks:
         sslSock.ssl_sock.close()

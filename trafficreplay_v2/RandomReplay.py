@@ -10,6 +10,7 @@ import lib.result as result
 import extractHeader
 import mainProcess
 import json
+import gzip
 bSTOP = False
 def createDummyBodywithLength(numberOfbytes):
     if numberOfbytes<=0:
@@ -53,6 +54,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         method = extractHeader.extract_txn_req_method(txn_req_headers)
         response = None
         body=None
+        content=None
         if 'Transfer-Encoding' in txn_req_headers_dict:
             # deleting the host key, since the STUPID post/get functions are going to add host field anyway, so there will be multiple host fields in the header
             # This confuses the ATS and it returns 400 "Invalid HTTP request". I don't believe this
@@ -65,27 +67,29 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
         if 'Content-Length' in txn_req_headers_dict:
             nBytes=int(txn_req_headers_dict['Content-Length'])
             body = createDummyBodywithLength(nBytes)
-        print("request session is",id(request_session))
+        #print("request session is",id(request_session))
         if method == 'GET':     
             response = request_session.get('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict, stream=True, allow_redirects=False,data=body)
+                                    headers=txn_req_headers_dict, stream=False, allow_redirects=False,data=body)
             if 'Content-Length' in response.headers:
                     content = response.raw
                     #print("len: {0} received {1}".format(response.headers['Content-Length'],content))
 
         elif method == 'POST':
             response = request_session.post('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers), 
-                                             headers=txn_req_headers_dict, stream=True, data=body, allow_redirects=False)
+                                             headers=txn_req_headers_dict, stream=False, data=body, allow_redirects=False)
             
             if 'Content-Length' in response.headers:
                 content = response.raw
+                #print("reading==========>>>>>>>>>>>>>.")
+                #print(content.data)
                 #print("len: {0} received {1}".format(response.headers['Content-Length'],content))
         elif method == 'HEAD':
             response = request_session.head('http://' + extractHeader.extract_host(txn_req_headers) + extractHeader.extract_GET_path(txn_req_headers),
-                                    headers=txn_req_headers_dict, stream=True)
-        
-        #print(response.headers)
-        #print("logged respose")
+                                    headers=txn_req_headers_dict, stream=False)
+
+            #gzip_file = gzip.GzipFile(fileobj=content)
+            #shutil.copyfileobj(gzip_file, f)
         expected=extractHeader.responseHeader_to_dict(resp.getHeaders())
         #print(expected)
         if mainProcess.verbose:
@@ -93,9 +97,8 @@ def txn_replay(session_filename, txn, proxy, result_queue, request_session):
             expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
             r = result.Result(session_filename, expected_output[0], response.status_code)
             print(r.getResultString(response.headers,expected,colorize=True))
-            #r.Compare(response.headers,expected)
+            r.Compare(response.headers,expected)
         #result_queue.put(r)
-        #print("response", response.status_code)
     except UnicodeEncodeError as e:
         # these unicode errors are due to the interaction between Requests and our wiretrace data. 
         # TODO fix

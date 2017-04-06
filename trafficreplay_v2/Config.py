@@ -10,5 +10,3 @@ proxy_nonssl_port = 8080
 #process and thread config
 nProcess = 4
 nThread = 4
-
-

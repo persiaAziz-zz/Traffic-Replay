@@ -115,7 +115,7 @@ class h2ATS(HTTP20Connection):
         :returns: Nothing.
 
         """
-        print("connecting to ATS")
+        #print("connecting to ATS")
         with self._lock:
             if self._sock is not None:
                 return
@@ -203,7 +203,7 @@ def txn_replay(session_filename, txn, proxy, result_queue, h2conn,request_IDs):
         #print(str2)
         if method == 'GET':
             responseID = h2conn.request('GET',url=extractHeader.extract_GET_path(txn_req_headers),headers=txn_req_headers_dict, body=mbody)
-            print("get response", responseID)
+            #print("get response", responseID)
             return responseID
             #request_IDs.append(responseID)
             #response = h2conn.get_response(id)
@@ -259,18 +259,32 @@ def session_replay(input, proxy, result_queue):
                 break
             with h2ATS('blablaland', secure=True, proxy_host="127.0.0.1",proxy_port=443) as h2conn:
                 request_IDs = []
+                respList = []
                 for txn in session.getTransactionIter():
                     try:
                         ret = txn_replay(session._filename, txn, proxy, result_queue, h2conn,request_IDs)
+                        respList.append(txn.getResponse())
                         request_IDs.append(ret)
                         #print("txn return value is ",ret)
                     except:
                         e=sys.exc_info()
                         print("ERROR in replaying: ",e,txn.getRequest().getHeaders())
                 for id in request_IDs:
-                    print("extracting",id)
+                    expectedH = respList.pop(0);
+                    #print("extracting",id)
                     response = h2conn.get_response(id)
-                    print("code {0}:{1}".format(response.status,response.headers))
+                    #print("code {0}:{1}".format(response.status,response.headers))
+                    response_dict = {}
+                    if mainProcess.verbose:
+                        for field,value in response.headers.items():
+                            response_dict[field.decode('utf-8')] = value.decode('utf-8')
+
+                        expected_output_split = expectedH.getHeaders().split('\r\n')[ 0].split(' ', 2)
+                        expected_output = (int(expected_output_split[1]), str( expected_output_split[2]))
+                        r = result.Result("", expected_output[0], response.status)
+                        expected_Dict = extractHeader.responseHeader_to_dict(expectedH.getHeaders())
+                        print(r.getResultString(response_dict,expected_Dict,colorize=True))
+                        #r.Compare(response_dict,expected_Dict)
 
         bSTOP = True
         print("Queue is empty")
