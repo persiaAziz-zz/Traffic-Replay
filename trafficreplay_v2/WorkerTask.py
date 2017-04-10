@@ -10,7 +10,7 @@ import lib.result as result
 from progress.bar import Bar
 import extractHeader
 import RandomReplay
-import sslReplay
+import SSLReplay
 import h2Replay
 def worker(input,output,proxy,replay_type,nThread):
     #progress_bar = Bar(" Replaying sessions {0}".format(current_process().name), max=input.qsize())
@@ -18,7 +18,7 @@ def worker(input,output,proxy,replay_type,nThread):
     if replay_type == 'random':
         RandomReplay.client_replay(input, proxy, output, nThread)
     elif replay_type == 'ssl':
-        sslReplay.client_replay(input, proxy, output,nThread)
+        SSLReplay.client_replay(input, proxy, output,nThread)
     elif replay_type == 'h2':
         h2Replay.client_replay(input, proxy, output,nThread)
         #progress_bar.next()

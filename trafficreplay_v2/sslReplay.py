@@ -36,8 +36,8 @@ def createDummyBodywithLength(numberOfbytes):
     return bytes(body,'UTF-8')
 
 def generator():
-    yield 'persia'
-    yield 'aziz'
+    yield 'Yahoo'
+    yield 'MicroServer'
 def SendRequest(ssl_sock, txn_req_headers_dict):
     if 'Transfer-Encoding' in txn_req_headers_dict and txn_req_headers_dict['Transfer-Encoding'] == 'chunked':
         writeChunkedData(ssl_sock)
@@ -89,8 +89,12 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
             if body!=None:
                 ssl_sock.write(body)
         #read the response
-        response = ssl_sock.read()
-        responseFile.write(response.decode())
+
+        response = b' '
+        while sys.getsizeof(response)!=0:
+            response = ssl_sock.read()
+            print("{0}:{1}".format(sys.getsizeof(response),response))
+        responseFile.write(response.decode('utf-8'))
         if mainProcess.verbose:
             print(response)
             status = response.decode().split('\r\n')[0]
@@ -114,12 +118,16 @@ def txn_replay(session_filename, txn, proxy, result_queue, ssl_sock):
 
     except requests.exceptions.ContentDecodingError as e:
         print("ContentDecodingError exception thrown: probably has to do with how ATS wiretracing encodes body data. Skipping this transaction")
+    except ssl.SSLWantReadError:
+        while sys.getsizeof(response)!=0:
+            response = ssl_sock.recv()
+            print("{0}:{1}".format(sys.getsizeof(response),response))
+        #print(response)
     except:
         e=sys.exc_info()
         print("ERROR in requests: ",e)
         
 
-           
 def client_replay(input, proxy, result_queue, nThread):
     Threads = []
     for i in range(nThread):
@@ -155,6 +163,7 @@ def session_replay(input, proxy, result_queue):
                                 server_hostname=txn_req_headers_dict['Host'])
 
             ssl_sock.connect((Config.proxy_host, Config.proxy_ssl_port))
+            #ssl_sock.setblocking(0)
             sslSocket=ssl_socket(ssl_sock,True)
             sslSocks.append(sslSocket)
             for txn in session.getTransactionIter():
@@ -171,6 +180,6 @@ def session_replay(input, proxy, result_queue):
         input.put('STOP')
         break
 
-    #time.sleep(0.5)
+    time.sleep(2.5)
     for sslSock in sslSocks:
         sslSock.ssl_sock.close()
